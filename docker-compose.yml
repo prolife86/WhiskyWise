@@ -1,0 +1,12 @@
+services:
+  whiskyvault:
+    build: .
+    container_name: whiskyvault
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./whiskyvault-data:/data
+    environment:
+      - PORT=3000
+      - NODE_ENV=production

@@ -33,19 +33,22 @@ services:
       - DB_TYPE=sqlite
 
 ```
+
 ### Volume Persistence
 > **Critical:** Always map the /app/data directory to a local volume. If you delete the container without a volume mapping, you will lose your tasting history and collection data.
 > 
+
 ## 🤝 Contributing
 Found a bug or want to suggest a feature like "Distillery Maps"?
  1. Fork the Project.
  2. Create your Feature Branch (git checkout -b feature/AmazingFeature).
  3. Commit your Changes (git commit -m 'Add some AmazingFeature').
  4. Push to the Branch (git push origin feature/AmazingFeature).
+ 5. Open a Pull Request.
 
- 5. ## 🤖 Built with AI
+## 🤖 Built with AI
 Portions of this application, were developed with the assistance of **Claude Sonnet 4.6**.
 This allows for a more rapid development cycle and optimized container orchestration.
- 6. Open a Pull Request.
+
 ## 📜 License
 Distributed under the MIT License. See LICENSE for more information.

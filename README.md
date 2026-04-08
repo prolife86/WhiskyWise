@@ -103,7 +103,7 @@ You can also use the information to enter this manually into Unraid and not rebo
 
 ## 🫆 Barcode Scanning
 
-Barcode scanning uses the browser's **BarcodeDetector API** (available in Chrome 83+ and Safari 17+). Works best on:
+Barcode scanning uses the browser's BarcodeDetector API (available in Chrome 83+ and Safari 17+). Works best on:
 - Android Chrome
 - iOS Safari 17+
 

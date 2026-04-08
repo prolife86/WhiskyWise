@@ -1,6 +1,7 @@
 # 🥃 Whisky Wise - _Your Personal Spirits Guide_
 >
 **Whisky Wise** is a lightweight, containerized personal assistant for spirits enthusiasts. Whether you're tracking a growing collection or cataloging the nuance of a rare Islay peat, Whisky Wise provides a clean, distraction-free interface to manage your journey through the world of whisky.
+
 ## ✨ Key Features
  * **Tasting Journal:** Log detailed notes on Nose, Palate, and Finish.
  * **Scoring** — 10-point scale
@@ -37,7 +38,7 @@ docker-compose up -d
 http://localhost:5000
 ```
 
-## Configuration (docker-compose.yml)
+## 🖥️ Configuration (docker-compose.yml)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -45,7 +46,7 @@ http://localhost:5000
 | `DATABASE_PATH` | `/data/db/whiskywise.db` | SQLite DB path |
 | `UPLOAD_FOLDER` | `/data/uploads` | Photo upload directory |
 
-## Data Persistence
+## 💿 Data Persistence
 
 All data is stored in a named Docker volume (`whiskywise_data`):
 - Database: `/data/db/whiskywise.db` (SQLite)
@@ -99,7 +100,7 @@ You can also use the information to enter this manually into Unraid and not rebo
 - **Password:** `whiskywise`
 > ⚠️ Change this immediately via **⚙️ Settings → Change Password**
 
-## Barcode Scanning
+## 🫆 Barcode Scanning
 
 Barcode scanning uses the browser's **BarcodeDetector API** (available in Chrome 83+ and Safari 17+). Works best on:
 - Android Chrome
@@ -107,7 +108,7 @@ Barcode scanning uses the browser's **BarcodeDetector API** (available in Chrome
 
 If the API is unavailable, you can type the barcode manually.
 
-## Accessing on Mobile (LAN)
+## 📱 Accessing on Mobile (LAN)
 
 To use WhiskyWise on your phone while connected to your home network:
 
@@ -117,7 +118,7 @@ To use WhiskyWise on your phone while connected to your home network:
 
 > Note: Camera/barcode scanning requires HTTPS or localhost. For LAN HTTPS, consider putting WhiskyWise behind a reverse proxy like Nginx with a local SSL certificate or use Tailscale.
 
-## Tech Stack
+## 📇 Tech Stack
 - **Backend:** Python / Flask
 - **Database:** SQLite (via SQLAlchemy)
 - **Auth:** Flask-Login

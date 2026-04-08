@@ -80,6 +80,12 @@ services:
     restart: unless-stopped
 ```
 
+### UnRaid Installation
+Download the my-WhiskyWise.xml and adjust the lines: #6 (Network) + #7 (IP Adress) + #31 (Secret Key) first!
+Upload the my-WhiskyWise.xml to your flashdrive via: Main, the browse icon in front of the Flash drive.
+Navigate to : config -> plugins -> dockerMan -> templates-user and then upload and reboot.
+You can also use the information to enter this manually into Unraid and not reboot.
+
 ### Volume Persistence
 > **Critical:** Always map the data directory to a local volume.
 > If you delete the container without a volume mapping, you will lose your tasting history and collection data.

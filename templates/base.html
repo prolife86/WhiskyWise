@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>{% block title %}WhiskyWise{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --amber: #C8832A;
+  --amber-deep: #8B4E10;
+  --amber-light: #E8A84A;
+  --amber-glow: #F5C670;
+  --peat: #2C1F0E;
+  --cask: #1A120A;
+  --oak: #3D2B14;
+  --grain: #F2E8D8;
+  --grain-mid: #D9C9A8;
+  --smoke: #6B5B45;
+  --ash: #9C8E7C;
+  --white: #FBF6EE;
+  --success: #4A7C59;
+  --error: #8B2635;
+  --info: #2A5F7A;
+  --radius: 12px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 20px rgba(0,0,0,0.4);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.25);
+  --transition: 0.2s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  background-color: var(--cask);
+  color: var(--grain);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(200,131,42,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(139,78,16,0.06) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23C8832A' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ── Typography ── */
+h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; line-height: 1.2; }
+h1 { font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 800; }
+h2 { font-size: clamp(1.2rem, 4vw, 1.8rem); font-weight: 600; }
+h3 { font-size: clamp(1rem, 3vw, 1.3rem); font-weight: 600; }
+p { line-height: 1.7; color: var(--grain-mid); }
+a { color: var(--amber-light); text-decoration: none; transition: color var(--transition); }
+a:hover { color: var(--amber-glow); }
+code, .mono { font-family: 'DM Mono', monospace; font-size: 0.85em; }
+
+/* ── Layout ── */
+.app-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── Nav ── */
+nav.topnav {
+  background: linear-gradient(135deg, var(--cask) 0%, var(--oak) 100%);
+  border-bottom: 1px solid rgba(200,131,42,0.3);
+  padding: 0 1rem;
+  position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(10px);
+}
+.nav-inner {
+  max-width: 1100px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 58px;
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 800;
+  color: var(--amber-glow); letter-spacing: 0.02em;
+}
+.nav-brand .brand-icon { font-size: 1.4rem; }
+.nav-links { display: flex; align-items: center; gap: 0.25rem; }
+.nav-links a {
+  color: var(--grain-mid); padding: 0.4rem 0.65rem; border-radius: var(--radius-sm);
+  font-size: 0.85rem; font-family: 'DM Mono', monospace;
+  transition: all var(--transition); white-space: nowrap;
+}
+.nav-links a:hover, .nav-links a.active {
+  color: var(--amber-glow); background: rgba(200,131,42,0.12);
+}
+.nav-hamburger {
+  display: none; background: none; border: none;
+  color: var(--grain); font-size: 1.4rem; cursor: pointer; padding: 0.3rem;
+}
+.nav-mobile-menu {
+  display: none; flex-direction: column;
+  background: var(--oak); border-top: 1px solid rgba(200,131,42,0.2);
+  padding: 0.5rem;
+}
+.nav-mobile-menu a {
+  color: var(--grain-mid); padding: 0.6rem 0.75rem; border-radius: var(--radius-sm);
+  font-size: 0.9rem; font-family: 'DM Mono', monospace;
+  display: block; transition: all var(--transition);
+}
+.nav-mobile-menu a:hover { color: var(--amber-glow); background: rgba(200,131,42,0.12); }
+.nav-mobile-menu.open { display: flex; }
+
+/* ── Main content ── */
+main.content { flex: 1; max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem 3rem; width: 100%; }
+
+/* ── Cards ── */
+.card {
+  background: linear-gradient(135deg, rgba(61,43,20,0.8) 0%, rgba(26,18,10,0.9) 100%);
+  border: 1px solid rgba(200,131,42,0.2);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.25rem; padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(200,131,42,0.15);
+}
+.card-header h2, .card-header h3 { color: var(--amber-glow); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 1.1rem; border-radius: var(--radius-sm);
+  font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 500;
+  border: none; cursor: pointer; transition: all var(--transition);
+  text-decoration: none; white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--amber) 0%, var(--amber-deep) 100%);
+  color: var(--white); box-shadow: 0 2px 10px rgba(200,131,42,0.3);
+}
+.btn-primary:hover { background: linear-gradient(135deg, var(--amber-light) 0%, var(--amber) 100%); color: var(--white); transform: translateY(-1px); box-shadow: 0 4px 15px rgba(200,131,42,0.4); }
+.btn-secondary { background: rgba(200,131,42,0.15); color: var(--amber-light); border: 1px solid rgba(200,131,42,0.3); }
+.btn-secondary:hover { background: rgba(200,131,42,0.25); color: var(--amber-glow); }
+.btn-ghost { background: transparent; color: var(--ash); border: 1px solid rgba(155,142,124,0.3); }
+.btn-ghost:hover { color: var(--grain); border-color: var(--grain-mid); }
+.btn-danger { background: rgba(139,38,53,0.2); color: #E06070; border: 1px solid rgba(139,38,53,0.4); }
+.btn-danger:hover { background: rgba(139,38,53,0.35); }
+.btn-sm { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
+.btn-full { width: 100%; justify-content: center; }
+
+/* ── Forms ── */
+.form-grid { display: grid; gap: 1rem; }
+.form-grid-2 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.form-group label { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--amber-light); letter-spacing: 0.06em; text-transform: uppercase; }
+.form-group input, .form-group select, .form-group textarea {
+  background: rgba(44,31,14,0.8); border: 1px solid rgba(200,131,42,0.25);
+  border-radius: var(--radius-sm); color: var(--grain);
+  padding: 0.6rem 0.85rem; font-family: 'Libre Baskerville', serif; font-size: 0.95rem;
+  transition: all var(--transition); width: 100%;
+}
+.form-group input:focus, .form-group select, .form-group textarea:focus {
+  outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px rgba(200,131,42,0.15);
+}
+.form-group select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C8832A' stroke-width='2' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem; }
+.form-group textarea { resize: vertical; min-height: 80px; }
+.form-group select option { background: var(--oak); }
+
+.score-input-wrapper { position: relative; }
+.score-display {
+  font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 800;
+  color: var(--amber-glow); text-align: center; line-height: 1;
+  padding: 0.5rem; cursor: default;
+}
+.score-slider { width: 100%; accent-color: var(--amber); cursor: pointer; }
+.score-ticks { display: flex; justify-content: space-between; font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--ash); margin-top: 0.25rem; }
+
+/* ── Flashes ── */
+.flashes { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+.flash {
+  padding: 0.7rem 1rem; border-radius: var(--radius-sm);
+  font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;
+}
+.flash.success { background: rgba(74,124,89,0.2); border: 1px solid rgba(74,124,89,0.4); color: #88C9A0; }
+.flash.error { background: rgba(139,38,53,0.2); border: 1px solid rgba(139,38,53,0.4); color: #E06070; }
+.flash.info { background: rgba(42,95,122,0.2); border: 1px solid rgba(42,95,122,0.4); color: #7DC0DC; }
+
+/* ── Score badge ── */
+.score-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--amber) 0%, var(--amber-deep) 100%);
+  font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 800;
+  color: var(--white); box-shadow: 0 2px 8px rgba(200,131,42,0.4);
+  flex-shrink: 0;
+}
+.score-badge.large { width: 72px; height: 72px; font-size: 1.5rem; }
+.score-badge.small { width: 38px; height: 38px; font-size: 0.85rem; }
+
+/* ── Flavor tag ── */
+.flavor-tag {
+  display: inline-block; padding: 0.2rem 0.6rem;
+  background: rgba(200,131,42,0.15); border: 1px solid rgba(200,131,42,0.3);
+  border-radius: 20px; font-family: 'DM Mono', monospace; font-size: 0.75rem;
+  color: var(--amber-light);
+}
+
+/* ── Status pill ── */
+.status-pill {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.2rem 0.65rem; border-radius: 20px;
+  font-family: 'DM Mono', monospace; font-size: 0.72rem; font-weight: 500;
+}
+.status-open { background: rgba(74,124,89,0.2); color: #88C9A0; border: 1px solid rgba(74,124,89,0.35); }
+.status-stashed { background: rgba(42,95,122,0.2); color: #7DC0DC; border: 1px solid rgba(42,95,122,0.35); }
+.status-finished { background: rgba(107,91,69,0.3); color: var(--ash); border: 1px solid rgba(107,91,69,0.5); }
+.status-retired { background: rgba(139,38,53,0.15); color: #E06070; border: 1px solid rgba(139,38,53,0.3); }
+
+/* ── Whisky grid ── */
+.whisky-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.whisky-card {
+  background: linear-gradient(160deg, rgba(61,43,20,0.85) 0%, rgba(26,18,10,0.95) 100%);
+  border: 1px solid rgba(200,131,42,0.18);
+  border-radius: var(--radius); overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  text-decoration: none; display: flex; flex-direction: column;
+}
+.whisky-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: rgba(200,131,42,0.4); color: inherit; }
+.whisky-card-thumb { height: 160px; background: rgba(44,31,14,0.6); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.whisky-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.whisky-card-thumb .no-photo { color: var(--smoke); font-size: 3.5rem; }
+.whisky-card-body { padding: 1rem; flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+.whisky-card-name { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 600; color: var(--grain); line-height: 1.3; }
+.whisky-card-distillery { font-size: 0.82rem; color: var(--ash); }
+.whisky-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 0.5rem; }
+
+/* ── Search bar ── */
+.search-bar {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: rgba(44,31,14,0.8); border: 1px solid rgba(200,131,42,0.25);
+  border-radius: var(--radius); padding: 0.5rem 0.75rem;
+  transition: border-color var(--transition);
+}
+.search-bar:focus-within { border-color: var(--amber); }
+.search-bar input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--grain); font-family: 'Libre Baskerville', serif; font-size: 0.95rem;
+}
+.search-bar .scan-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--amber-light); font-size: 1.2rem; padding: 0.1rem; transition: color var(--transition);
+}
+.search-bar .scan-btn:hover { color: var(--amber-glow); }
+
+/* ── Filter bar ── */
+.filter-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.filter-row select, .filter-row input {
+  background: rgba(44,31,14,0.8); border: 1px solid rgba(200,131,42,0.25);
+  border-radius: var(--radius-sm); color: var(--grain);
+  padding: 0.45rem 0.7rem; font-size: 0.85rem; font-family: 'DM Mono', monospace;
+  flex: 1; min-width: 120px; max-width: 180px;
+}
+.filter-row select { appearance: none; padding-right: 1.5rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23C8832A' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.5rem center; }
+.filter-row select option { background: var(--oak); }
+
+/* ── Photo grid ── */
+.photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+.photo-slot { position: relative; aspect-ratio: 3/4; border-radius: var(--radius-sm); overflow: hidden; background: rgba(44,31,14,0.6); border: 1px solid rgba(200,131,42,0.2); cursor: pointer; }
+.photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+.photo-slot .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--smoke); gap: 0.4rem; font-family: 'DM Mono', monospace; font-size: 0.75rem; }
+.photo-slot .placeholder span { font-size: 2rem; }
+.photo-slot input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.photo-slot-label { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--ash); text-align: center; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+
+/* ── Tasting section ── */
+.tasting-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.tasting-note { background: rgba(44,31,14,0.5); border-radius: var(--radius-sm); padding: 1rem; border-left: 3px solid var(--amber-deep); }
+.tasting-note h4 { font-family: 'DM Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--amber-light); margin-bottom: 0.4rem; }
+.tasting-note p { font-size: 0.9rem; color: var(--grain-mid); line-height: 1.6; }
+
+/* ── Rating chart ── */
+.chart-bar-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(200,131,42,0.08); }
+.chart-bar-row:last-child { border-bottom: none; }
+.chart-bar-label { font-family: 'Playfair Display', serif; font-size: 0.9rem; color: var(--grain); flex: 0 0 auto; width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chart-bar-track { flex: 1; height: 10px; background: rgba(200,131,42,0.1); border-radius: 5px; overflow: hidden; }
+.chart-bar-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--amber-deep) 0%, var(--amber-glow) 100%); transition: width 1s ease; }
+.chart-bar-score { font-family: 'Playfair Display', serif; font-weight: 700; color: var(--amber-glow); font-size: 1rem; flex: 0 0 auto; width: 35px; text-align: right; }
+
+/* ── Camera modal ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.85); align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--oak); border: 1px solid rgba(200,131,42,0.3);
+  border-radius: var(--radius); padding: 1.5rem; max-width: 420px; width: 100%;
+  box-shadow: var(--shadow);
+}
+.modal-box h3 { color: var(--amber-glow); margin-bottom: 1rem; }
+#scanner-video { width: 100%; border-radius: var(--radius-sm); background: #000; }
+
+/* ── Wishlist note card ── */
+.wish-card {
+  background: rgba(61,43,20,0.5);
+  border: 1px solid rgba(200,131,42,0.2);
+  border-radius: var(--radius); padding: 1.25rem;
+  position: relative; transition: border-color var(--transition);
+}
+.wish-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: linear-gradient(180deg, var(--amber) 0%, var(--amber-deep) 100%);
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+.wish-card:hover { border-color: rgba(200,131,42,0.4); }
+.wish-card-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--grain); }
+.wish-card-meta { font-size: 0.82rem; color: var(--ash); margin-top: 0.25rem; }
+.wish-card-notes { font-size: 0.88rem; color: var(--grain-mid); margin-top: 0.5rem; font-style: italic; line-height: 1.6; }
+
+/* ── Stats row ── */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+.stat-box {
+  background: rgba(61,43,20,0.6); border: 1px solid rgba(200,131,42,0.15);
+  border-radius: var(--radius); padding: 1rem; text-align: center;
+}
+.stat-box .stat-num { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 800; color: var(--amber-glow); line-height: 1; }
+.stat-box .stat-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--ash); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.2rem; }
+
+/* ── Section divider ── */
+.section-title {
+  font-family: 'DM Mono', monospace; font-size: 0.72rem; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--amber); margin-bottom: 0.75rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: rgba(200,131,42,0.2); }
+
+/* ── Divider ── */
+.divider { height: 1px; background: rgba(200,131,42,0.15); margin: 1.5rem 0; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .nav-links { display: none; }
+  .nav-hamburger { display: block; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .chart-bar-label { width: 120px; font-size: 0.8rem; }
+  .whisky-grid { grid-template-columns: 1fr; }
+  .form-grid-2 { grid-template-columns: 1fr; }
+  .filter-row select, .filter-row input { max-width: none; }
+  main.content { padding: 1rem 0.75rem 3rem; }
+}
+@media (max-width: 400px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+  <nav class="topnav">
+    <div class="nav-inner">
+      <a href="{{ url_for('index') }}" class="nav-brand">
+        <span class="brand-icon">🥃</span> WhiskyWise
+      </a>
+      <div class="nav-links">
+        <a href="{{ url_for('index') }}" {% if request.endpoint=='index' %}class="active"{% endif %}>Home</a>
+        <a href="{{ url_for('collection') }}" {% if request.endpoint in ['collection','whisky_detail','edit_whisky'] %}class="active"{% endif %}>Collection</a>
+        <a href="{{ url_for('new_whisky') }}" {% if request.endpoint=='new_whisky' %}class="active"{% endif %}>+ Add</a>
+        <a href="{{ url_for('wishlist') }}" {% if request.endpoint in ['wishlist','new_wishlist_item'] %}class="active"{% endif %}>Wishlist</a>
+        <a href="{{ url_for('export_csv') }}">Export</a>
+        <a href="{{ url_for('change_password') }}">⚙️</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+      </div>
+      <button class="nav-hamburger" onclick="toggleMenu()">☰</button>
+    </div>
+    <div class="nav-mobile-menu" id="mobileMenu">
+      <a href="{{ url_for('index') }}">🏠 Home</a>
+      <a href="{{ url_for('collection') }}">📦 Collection</a>
+      <a href="{{ url_for('new_whisky') }}">+ Add Whisky</a>
+      <a href="{{ url_for('wishlist') }}">💫 Wishlist</a>
+      <a href="{{ url_for('export_csv') }}">📤 Export CSV</a>
+      <a href="{{ url_for('change_password') }}">⚙️ Settings</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+  </nav>
+
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flashes">
+      {% for cat, msg in messages %}
+      <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<!-- Barcode Scanner Modal -->
+<div class="modal-overlay" id="scanModal">
+  <div class="modal-box">
+    <h3>📷 Scan Barcode</h3>
+    <video id="scanner-video" autoplay playsinline></video>
+    <canvas id="scanner-canvas" style="display:none;"></canvas>
+    <p id="scan-status" style="margin-top:0.75rem;font-size:0.85rem;color:var(--ash);">Point camera at barcode…</p>
+    <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+      <button class="btn btn-secondary btn-full" onclick="closeScanModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleMenu() {
+  document.getElementById('mobileMenu').classList.toggle('open');
+}
+// Close menu on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('nav')) document.getElementById('mobileMenu').classList.remove('open');
+});
+
+// Scanner
+let scanStream = null;
+let scanTarget = null;
+let scanInterval = null;
+
+function openScanModal(targetId) {
+  scanTarget = targetId;
+  document.getElementById('scanModal').classList.add('open');
+  startCamera();
+}
+function closeScanModal() {
+  document.getElementById('scanModal').classList.remove('open');
+  stopCamera();
+}
+function stopCamera() {
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+}
+async function startCamera() {
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const v = document.getElementById('scanner-video');
+    v.srcObject = scanStream;
+    await v.play();
+    if ('BarcodeDetector' in window) {
+      const bd = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','qr_code'] });
+      scanInterval = setInterval(async () => {
+        try {
+          const codes = await bd.detect(v);
+          if (codes.length > 0) {
+            handleBarcode(codes[0].rawValue);
+          }
+        } catch {}
+      }, 400);
+    } else {
+      document.getElementById('scan-status').textContent = 'BarcodeDetector not supported — please enter manually.';
+    }
+  } catch(e) {
+    document.getElementById('scan-status').textContent = 'Camera not available: ' + e.message;
+  }
+}
+function handleBarcode(code) {
+  stopCamera();
+  document.getElementById('scanModal').classList.remove('open');
+  const el = document.getElementById(scanTarget);
+  if (el) { el.value = code; el.dispatchEvent(new Event('change')); }
+  // Check if we have it already
+  if (scanTarget === 'barcode') {
+    fetch('/api/barcode-lookup?code=' + encodeURIComponent(code))
+      .then(r => r.json())
+      .then(d => {
+        if (d.found) {
+          if (confirm('Found "' + d.name + '" in your collection. Go to it?')) {
+            window.location = '/whisky/' + d.id;
+          }
+        }
+      });
+  }
+}
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

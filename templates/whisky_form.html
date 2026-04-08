@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% block title %}{% if whisky %}Edit {{ whisky.name }}{% else %}Add Whisky{% endif %} — WhiskyWise{% endblock %}
+{% block content %}
+<div style="margin-bottom:1.25rem;">
+  {% if whisky %}
+  <a href="{{ url_for('whisky_detail', wid=whisky.id) }}" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">← Back</a>
+  <h1 style="color:var(--grain);margin-top:0.3rem;">Edit Whisky</h1>
+  {% else %}
+  <a href="{{ url_for('collection') }}" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">← Collection</a>
+  <h1 style="color:var(--grain);margin-top:0.3rem;">Add New Whisky</h1>
+  {% endif %}
+</div>
+
+<form method="POST" enctype="multipart/form-data" id="whisky-form">
+<!-- Basic Info -->
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header"><h3>🥃 Basic Information</h3></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group" style="grid-column:1/-1;">
+      <label>Whisky Name *</label>
+      <input type="text" name="name" value="{{ whisky.name if whisky else '' }}" required placeholder="e.g. Glenfarclas 15 Year Old">
+    </div>
+    <div class="form-group">
+      <label>Distillery</label>
+      <input type="text" name="distillery" value="{{ whisky.distillery if whisky else '' }}" placeholder="e.g. Glenfarclas">
+    </div>
+    <div class="form-group">
+      <label>Region</label>
+      <input type="text" name="region" value="{{ whisky.region if whisky else '' }}" placeholder="e.g. Speyside">
+    </div>
+    <div class="form-group">
+      <label>Age Statement</label>
+      <input type="text" name="age" value="{{ whisky.age if whisky else '' }}" placeholder="e.g. 15 or NAS">
+    </div>
+    <div class="form-group">
+      <label>ABV (%)</label>
+      <input type="number" name="abv" value="{{ whisky.abv if whisky else '' }}" step="0.1" min="0" max="100" placeholder="46.0">
+    </div>
+    <div class="form-group">
+      <label>Barcode</label>
+      <div style="display:flex;gap:0.4rem;">
+        <input type="text" name="barcode" id="barcode" value="{{ whisky.barcode if whisky else '' }}" placeholder="Scan or enter barcode" style="flex:1;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openScanModal('barcode')">📷 Scan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Collection status -->
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header"><h3>📦 Collection Status</h3></div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group">
+      <label>Status</label>
+      <select name="status">
+        <option value="stashed" {% if not whisky or whisky.status=='stashed' %}selected{% endif %}>📦 Stashed</option>
+        <option value="open" {% if whisky and whisky.status=='open' %}selected{% endif %}>🔓 Open</option>
+        <option value="finished" {% if whisky and whisky.status=='finished' %}selected{% endif %}>🏁 Finished</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Price (€)</label>
+      <input type="number" name="price" value="{{ whisky.price if whisky else '' }}" step="0.01" min="0" placeholder="e.g. 49.95">
+    </div>
+    <div class="form-group">
+      <label>Store / Source</label>
+      <input type="text" name="store" value="{{ whisky.store if whisky else '' }}" placeholder="e.g. The Whisky Exchange">
+    </div>
+    <div class="form-group" style="justify-content:flex-end;padding-top:0.5rem;">
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;font-size:0.9rem;color:var(--grain-mid);">
+        <input type="checkbox" name="retired" {% if whisky and whisky.retired %}checked{% endif %} style="accent-color:var(--amber);width:16px;height:16px;">
+        <span>🚫 Mark as Retired (no longer available)</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- Tasting Notes & Score -->
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header"><h3>👃 Tasting Notes & Score</h3></div>
+
+  <!-- Score -->
+  <div class="section-title">Score</div>
+  <div style="max-width:320px;margin-bottom:1.5rem;">
+    <div class="score-display" id="score-display">
+      {{ whisky.score if whisky and whisky.score else '—' }}
+    </div>
+    <input type="range" name="score" id="score-slider" class="score-slider"
+           min="0" max="10" step="0.1"
+           value="{{ whisky.score if whisky and whisky.score else '' }}"
+           oninput="updateScore(this.value)">
+    <div class="score-ticks">
+      <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+      <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+    </div>
+    <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+      <input type="number" id="score-manual" min="0" max="10" step="0.1"
+             value="{{ whisky.score if whisky and whisky.score else '' }}"
+             placeholder="Type score"
+             oninput="syncScore(this.value)"
+             style="flex:1;"
+             class="form-group">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="clearScore()">Clear</button>
+    </div>
+  </div>
+
+  <div class="section-title">Flavor Profile</div>
+  <div class="form-group" style="max-width:280px;margin-bottom:1.5rem;">
+    <select name="flavor_profile">
+      <option value="">— Select flavor profile —</option>
+      {% for f in flavor_profiles %}
+      <option value="{{ f }}" {% if whisky and whisky.flavor_profile == f %}selected{% endif %}>{{ f|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="section-title">Tasting Notes</div>
+  <div class="form-grid form-grid-2">
+    <div class="form-group">
+      <label>Nose</label>
+      <textarea name="nose" placeholder="Aromas on the nose…">{{ whisky.nose if whisky else '' }}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Palate</label>
+      <textarea name="palate" placeholder="Taste on the palate…">{{ whisky.palate if whisky else '' }}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Finish</label>
+      <textarea name="finish" placeholder="The finish and aftertaste…">{{ whisky.finish if whisky else '' }}</textarea>
+    </div>
+    <div class="form-group">
+      <label>General Notes</label>
+      <textarea name="notes" placeholder="Any other notes or observations…">{{ whisky.notes if whisky else '' }}</textarea>
+    </div>
+  </div>
+</div>
+
+<!-- Photos -->
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header"><h3>📸 Photos</h3></div>
+  <p style="font-size:0.82rem;margin-bottom:1rem;">Tap a slot to upload a photo (max 16MB each, auto-resized)</p>
+  <div class="photo-grid">
+    {% for slot, label, icon in [('front','Front Label','🏷️'),('back','Back Label','📋'),('cask','Cask / Bottle','🍾'),('barcode','Barcode','▌▌▌')] %}
+    {% set cur = whisky['photo_'+slot] if whisky and whisky['photo_'+slot] else None %}
+    {% if slot == 'front' %}{% set cur = whisky.photo_front if whisky else None %}
+    {% elif slot == 'back' %}{% set cur = whisky.photo_back if whisky else None %}
+    {% elif slot == 'cask' %}{% set cur = whisky.photo_cask if whisky else None %}
+    {% else %}{% set cur = whisky.photo_barcode if whisky else None %}{% endif %}
+    <div>
+      <div class="photo-slot" id="slot-{{ slot }}">
+        {% if cur %}
+        <img src="{{ url_for('serve_photo', filename=cur) }}" alt="{{ label }}" id="preview-{{ slot }}">
+        {% else %}
+        <div class="placeholder" id="preview-{{ slot }}">
+          <span>{{ icon }}</span>
+          <span>Tap to add</span>
+        </div>
+        {% endif %}
+        <input type="file" name="photo_{{ slot }}" accept="image/*"
+               onchange="previewPhoto(this, '{{ slot }}')"
+               capture="environment">
+      </div>
+      <div class="photo-slot-label">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Submit -->
+<div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+  <button type="submit" class="btn btn-primary">
+    {% if whisky %}💾 Save Changes{% else %}➕ Add Whisky{% endif %}
+  </button>
+  {% if whisky %}
+  <a href="{{ url_for('whisky_detail', wid=whisky.id) }}" class="btn btn-ghost">Cancel</a>
+  {% else %}
+  <a href="{{ url_for('collection') }}" class="btn btn-ghost">Cancel</a>
+  {% endif %}
+</div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateScore(val) {
+  const v = parseFloat(val);
+  document.getElementById('score-display').textContent = isNaN(v) ? '—' : v.toFixed(1);
+  document.getElementById('score-manual').value = isNaN(v) ? '' : v.toFixed(1);
+}
+function syncScore(val) {
+  const v = parseFloat(val);
+  if (!isNaN(v) && v >= 0 && v <= 10) {
+    document.getElementById('score-slider').value = v;
+    document.getElementById('score-display').textContent = v.toFixed(1);
+  }
+}
+function clearScore() {
+  document.getElementById('score-slider').value = '';
+  document.getElementById('score-display').textContent = '—';
+  document.getElementById('score-manual').value = '';
+  document.querySelector('[name=score]').value = '';
+}
+
+// Initialize display
+const initScore = document.getElementById('score-slider').value;
+if (initScore) updateScore(initScore);
+
+function previewPhoto(input, slot) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const container = document.getElementById('preview-' + slot);
+    container.outerHTML = `<img src="${e.target.result}" alt="" id="preview-${slot}" style="width:100%;height:100%;object-fit:cover;">`;
+  };
+  reader.readAsDataURL(file);
+}
+</script>
+{% endblock %}

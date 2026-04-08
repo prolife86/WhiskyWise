@@ -15,7 +15,7 @@
  * **Search & Filter** — By name, distillery, barcode, flavor, score, price, status
  * **CSV Export** — Download your entire collection
  * **User Authentication** — Login required, password changeable
- * **Barcode Scanning** — Camera-based scanning for logging and tracking _(Note: Work in Progress!)_
+ * **Barcode Scanning** — Camera-based scanning for logging and tracking
  * **User Selection** — Multiuser login option and username changes _(Note: Work in Progress!)_
 
 ## 🚀 Getting Started
@@ -106,7 +106,6 @@ You can also use the information to enter this manually into Unraid and not rebo
 Barcode scanning uses the browser's BarcodeDetector API (available in Chrome 83+ and Safari 17+). Works best on:
 - Android Chrome
 - iOS Safari 17+
-
 If the API is unavailable, you can type the barcode manually.
 
 ## 📱 Accessing on Mobile (LAN)

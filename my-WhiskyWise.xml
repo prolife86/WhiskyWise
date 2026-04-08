@@ -2,7 +2,7 @@
 <Container version="2">
   <Name>WhiskyWise</Name>
   <Repository>ghcr.io/prolife86/whiskywise:latest</Repository>
-  <Registry/>
+  <Registry>https://github.com/prolife86/WhiskyWise</Registry>
   <Network>eth1</Network>
   <MyIP>192.168.1.XX</MyIP>
   <Shell>sh</Shell>

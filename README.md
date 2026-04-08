@@ -9,12 +9,13 @@
  * **Photos** — ie. Front label, back label, cask/bottle, barcode
  * **Purchase Info** — Price, store, retired status
  * **Data Portability:** Your data stays in your container; export to CSV anytime.
- * **Barcode Scanning** — Camera-based scanning for logging and tracking
- * **Wishlist** — Note-style wishlist with price and store
+  * **Wishlist** — Note-style wishlist with price and store
  * **Top 10 Chart** — Animated rating chart on the home page
  * **Search & Filter** — By name, distillery, barcode, flavor, score, price, status
  * **CSV Export** — Download your entire collection
  * **User Authentication** — Login required, password changeable
+ * **Barcode Scanning** — Camera-based scanning for logging and tracking _(Note: Work in Progress!)_
+ * **User Selection** — Multiuser login option and username changes _(Note: Work in Progress!)_
 
 ## 🚀 Getting Started
 The most reliable way to run Whisky Wise is via Docker. This ensures all dependencies (database, environment, and server) are perfectly configured out of the box.

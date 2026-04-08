@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   whiskywise:
+    build: .
     container_name: whiskywise
     ports:
       - "5000:5000"
@@ -12,3 +13,7 @@ services:
       - DATABASE_PATH=/data/db/whiskywise.db
       - UPLOAD_FOLDER=/data/uploads
     restart: unless-stopped
+
+volumes:
+  whiskywise_data:
+    driver: local

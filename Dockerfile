@@ -12,6 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Data dirs are created at runtime from the volume mount,
+# but we pre-create them so local (non-volume) runs work too
 RUN mkdir -p /data/uploads /data/db
 
 ENV FLASK_APP=app.py
@@ -19,6 +21,13 @@ ENV DATABASE_PATH=/data/db/whiskywise.db
 ENV UPLOAD_FOLDER=/data/uploads
 ENV SECRET_KEY=change-me-in-production
 
+# Run as non-root
+RUN adduser --disabled-password --gecos '' appuser && \
+    chown -R appuser /app /data
+USER appuser
+
 EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "app:app"]
+# Single worker avoids concurrent DB-init races on first boot;
+# 4 threads handle concurrent requests efficiently.
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "4", "--timeout", "120", "app:app"]

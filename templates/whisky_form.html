@@ -12,6 +12,7 @@
 </div>
 
 <form method="POST" enctype="multipart/form-data" id="whisky-form">
+
 <!-- Basic Info -->
 <div class="card" style="margin-bottom:1rem;">
   <div class="card-header"><h3>🥃 Basic Information</h3></div>
@@ -46,7 +47,7 @@
   </div>
 </div>
 
-<!-- Collection status -->
+<!-- Collection Status -->
 <div class="card" style="margin-bottom:1rem;">
   <div class="card-header"><h3>📦 Collection Status</h3></div>
   <div class="form-grid form-grid-2">
@@ -54,8 +55,8 @@
       <label>Status</label>
       <select name="status">
         <option value="stashed" {% if not whisky or whisky.status=='stashed' %}selected{% endif %}>📦 Stashed</option>
-        <option value="open" {% if whisky and whisky.status=='open' %}selected{% endif %}>🔓 Open</option>
-        <option value="finished" {% if whisky and whisky.status=='finished' %}selected{% endif %}>🏁 Finished</option>
+        <option value="open"    {% if whisky and whisky.status=='open'    %}selected{% endif %}>🔓 Open</option>
+        <option value="finished"{% if whisky and whisky.status=='finished'%}selected{% endif %}>🏁 Finished</option>
       </select>
     </div>
     <div class="form-group">
@@ -66,10 +67,10 @@
       <label>Store / Source</label>
       <input type="text" name="store" value="{{ whisky.store if whisky else '' }}" placeholder="e.g. The Whisky Exchange">
     </div>
-    <div class="form-group" style="justify-content:flex-end;padding-top:0.5rem;">
+    <div class="form-group" style="justify-content:flex-end;padding-top:1.2rem;">
       <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;font-size:0.9rem;color:var(--grain-mid);">
         <input type="checkbox" name="retired" {% if whisky and whisky.retired %}checked{% endif %} style="accent-color:var(--amber);width:16px;height:16px;">
-        <span>🚫 Mark as Retired (no longer available)</span>
+        <span>🚫 Mark as Retired (no longer for sale)</span>
       </label>
     </div>
   </div>
@@ -77,33 +78,37 @@
 
 <!-- Tasting Notes & Score -->
 <div class="card" style="margin-bottom:1rem;">
-  <div class="card-header"><h3>👃 Tasting Notes & Score</h3></div>
+  <div class="card-header"><h3>👃 Tasting Notes &amp; Score</h3></div>
 
-  <!-- Score -->
+  <!-- Score: hidden input is what gets submitted; slider/manual are purely UI -->
   <div class="section-title">Score</div>
+  <input type="hidden" name="score" id="score-value"
+         value="{{ '%.1f'|format(whisky.score) if whisky and whisky.score is not none else '' }}">
   <div style="max-width:320px;margin-bottom:1.5rem;">
     <div class="score-display" id="score-display">
-      {{ whisky.score if whisky and whisky.score else '—' }}
+      {{ '%.1f'|format(whisky.score) if whisky and whisky.score is not none else '—' }}
     </div>
-    <input type="range" name="score" id="score-slider" class="score-slider"
+    <input type="range" id="score-slider" class="score-slider"
            min="0" max="10" step="0.1"
-           value="{{ whisky.score if whisky and whisky.score else '' }}"
-           oninput="updateScore(this.value)">
+           value="{{ whisky.score if whisky and whisky.score is not none else 5 }}"
+           oninput="onSlider(this.value)">
     <div class="score-ticks">
       <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
       <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
     </div>
-    <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+    <div style="display:flex;gap:0.5rem;margin-top:0.75rem;align-items:center;">
       <input type="number" id="score-manual" min="0" max="10" step="0.1"
-             value="{{ whisky.score if whisky and whisky.score else '' }}"
-             placeholder="Type score"
-             oninput="syncScore(this.value)"
-             style="flex:1;"
-             class="form-group">
+             value="{{ '%.1f'|format(whisky.score) if whisky and whisky.score is not none else '' }}"
+             placeholder="Type a score 0–10"
+             oninput="onManual(this.value)"
+             style="flex:1;background:rgba(44,31,14,0.8);border:1px solid rgba(200,131,42,0.25);
+                    border-radius:6px;color:var(--grain);padding:0.5rem 0.75rem;
+                    font-family:'Libre Baskerville',serif;font-size:0.95rem;">
       <button type="button" class="btn btn-ghost btn-sm" onclick="clearScore()">Clear</button>
     </div>
   </div>
 
+  <!-- Flavor Profile -->
   <div class="section-title">Flavor Profile</div>
   <div class="form-group" style="max-width:280px;margin-bottom:1.5rem;">
     <select name="flavor_profile">
@@ -114,6 +119,7 @@
     </select>
   </div>
 
+  <!-- Notes -->
   <div class="section-title">Tasting Notes</div>
   <div class="form-grid form-grid-2">
     <div class="form-group">
@@ -138,36 +144,62 @@
 <!-- Photos -->
 <div class="card" style="margin-bottom:1rem;">
   <div class="card-header"><h3>📸 Photos</h3></div>
-  <p style="font-size:0.82rem;margin-bottom:1rem;">Tap a slot to upload a photo (max 16MB each, auto-resized)</p>
+  <p style="font-size:0.82rem;margin-bottom:1rem;">Tap a slot to upload (max 16 MB each, auto-resized to 1200 px)</p>
   <div class="photo-grid">
-    {% for slot, label, icon in [('front','Front Label','🏷️'),('back','Back Label','📋'),('cask','Cask / Bottle','🍾'),('barcode','Barcode','▌▌▌')] %}
-    {% set cur = whisky['photo_'+slot] if whisky and whisky['photo_'+slot] else None %}
-    {% if slot == 'front' %}{% set cur = whisky.photo_front if whisky else None %}
-    {% elif slot == 'back' %}{% set cur = whisky.photo_back if whisky else None %}
-    {% elif slot == 'cask' %}{% set cur = whisky.photo_cask if whisky else None %}
-    {% else %}{% set cur = whisky.photo_barcode if whisky else None %}{% endif %}
+
     <div>
-      <div class="photo-slot" id="slot-{{ slot }}">
-        {% if cur %}
-        <img src="{{ url_for('serve_photo', filename=cur) }}" alt="{{ label }}" id="preview-{{ slot }}">
+      <div class="photo-slot" id="slot-front">
+        {% if whisky and whisky.photo_front %}
+          <img src="{{ url_for('serve_photo', filename=whisky.photo_front) }}" alt="Front" id="preview-front">
         {% else %}
-        <div class="placeholder" id="preview-{{ slot }}">
-          <span>{{ icon }}</span>
-          <span>Tap to add</span>
-        </div>
+          <div class="placeholder" id="preview-front"><span>🏷️</span><span>Tap to add</span></div>
         {% endif %}
-        <input type="file" name="photo_{{ slot }}" accept="image/*"
-               onchange="previewPhoto(this, '{{ slot }}')"
-               capture="environment">
+        <input type="file" name="photo_front" accept="image/*" onchange="previewPhoto(this,'front')">
       </div>
-      <div class="photo-slot-label">{{ label }}</div>
+      <div class="photo-slot-label">Front Label</div>
     </div>
-    {% endfor %}
+
+    <div>
+      <div class="photo-slot" id="slot-back">
+        {% if whisky and whisky.photo_back %}
+          <img src="{{ url_for('serve_photo', filename=whisky.photo_back) }}" alt="Back" id="preview-back">
+        {% else %}
+          <div class="placeholder" id="preview-back"><span>📋</span><span>Tap to add</span></div>
+        {% endif %}
+        <input type="file" name="photo_back" accept="image/*" onchange="previewPhoto(this,'back')">
+      </div>
+      <div class="photo-slot-label">Back Label</div>
+    </div>
+
+    <div>
+      <div class="photo-slot" id="slot-cask">
+        {% if whisky and whisky.photo_cask %}
+          <img src="{{ url_for('serve_photo', filename=whisky.photo_cask) }}" alt="Cask" id="preview-cask">
+        {% else %}
+          <div class="placeholder" id="preview-cask"><span>🍾</span><span>Tap to add</span></div>
+        {% endif %}
+        <input type="file" name="photo_cask" accept="image/*" onchange="previewPhoto(this,'cask')">
+      </div>
+      <div class="photo-slot-label">Cask / Bottle</div>
+    </div>
+
+    <div>
+      <div class="photo-slot" id="slot-barcode">
+        {% if whisky and whisky.photo_barcode %}
+          <img src="{{ url_for('serve_photo', filename=whisky.photo_barcode) }}" alt="Barcode" id="preview-barcode">
+        {% else %}
+          <div class="placeholder" id="preview-barcode"><span>▌▌▌</span><span>Tap to add</span></div>
+        {% endif %}
+        <input type="file" name="photo_barcode" accept="image/*" onchange="previewPhoto(this,'barcode')">
+      </div>
+      <div class="photo-slot-label">Barcode Photo</div>
+    </div>
+
   </div>
 </div>
 
 <!-- Submit -->
-<div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+<div style="display:flex;gap:0.75rem;flex-wrap:wrap;padding-bottom:2rem;">
   <button type="submit" class="btn btn-primary">
     {% if whisky %}💾 Save Changes{% else %}➕ Add Whisky{% endif %}
   </button>
@@ -177,41 +209,72 @@
   <a href="{{ url_for('collection') }}" class="btn btn-ghost">Cancel</a>
   {% endif %}
 </div>
+
 </form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function updateScore(val) {
-  const v = parseFloat(val);
-  document.getElementById('score-display').textContent = isNaN(v) ? '—' : v.toFixed(1);
-  document.getElementById('score-manual').value = isNaN(v) ? '' : v.toFixed(1);
+// ── Score controls ────────────────────────────────────────────────────────────
+const scoreHidden  = document.getElementById('score-value');
+const scoreDisplay = document.getElementById('score-display');
+const scoreSlider  = document.getElementById('score-slider');
+const scoreManual  = document.getElementById('score-manual');
+
+function setScore(v) {
+  const num = Math.min(10, Math.max(0, parseFloat(v)));
+  if (isNaN(num)) return;
+  scoreHidden.value        = num.toFixed(1);
+  scoreDisplay.textContent = num.toFixed(1);
+  scoreSlider.value        = num.toFixed(1);
+  scoreManual.value        = num.toFixed(1);
 }
-function syncScore(val) {
+
+function onSlider(val) { setScore(val); }
+
+function onManual(val) {
   const v = parseFloat(val);
   if (!isNaN(v) && v >= 0 && v <= 10) {
-    document.getElementById('score-slider').value = v;
-    document.getElementById('score-display').textContent = v.toFixed(1);
+    scoreHidden.value        = v.toFixed(1);
+    scoreDisplay.textContent = v.toFixed(1);
+    scoreSlider.value        = v.toFixed(1);
   }
 }
+
 function clearScore() {
-  document.getElementById('score-slider').value = '';
-  document.getElementById('score-display').textContent = '—';
-  document.getElementById('score-manual').value = '';
-  document.querySelector('[name=score]').value = '';
+  scoreHidden.value        = '';
+  scoreDisplay.textContent = '—';
+  scoreManual.value        = '';
 }
 
-// Initialize display
-const initScore = document.getElementById('score-slider').value;
-if (initScore) updateScore(initScore);
+// Initialise from server value
+(function() {
+  const init = parseFloat(scoreHidden.value);
+  if (!isNaN(init)) {
+    scoreDisplay.textContent = init.toFixed(1);
+    scoreSlider.value        = init.toFixed(1);
+    scoreManual.value        = init.toFixed(1);
+  }
+})();
 
+// ── Photo preview ─────────────────────────────────────────────────────────────
 function previewPhoto(input, slot) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const container = document.getElementById('preview-' + slot);
-    container.outerHTML = `<img src="${e.target.result}" alt="" id="preview-${slot}" style="width:100%;height:100%;object-fit:cover;">`;
+    const existing = document.getElementById('preview-' + slot);
+    if (!existing) return;
+    if (existing.tagName === 'IMG') {
+      existing.src = e.target.result;
+    } else {
+      const img = document.createElement('img');
+      img.src       = e.target.result;
+      img.alt       = '';
+      img.id        = 'preview-' + slot;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      existing.replaceWith(img);
+    }
   };
   reader.readAsDataURL(file);
 }

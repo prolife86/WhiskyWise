@@ -1,5 +1,4 @@
-# 🥃 Whisky Wise
-_Your Personal Spirits Guide_
+# 🥃 Whisky Wise - _Your Personal Spirits Guide_
 >
 **Whisky Wise** is a lightweight, containerized personal assistant for spirits enthusiasts. Whether you're tracking a growing collection or cataloging the nuance of a rare Islay peat, Whisky Wise provides a clean, distraction-free interface to manage your journey through the world of whisky.
 ## ✨ Key Features

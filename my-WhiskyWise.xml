@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>WhiskyWise</Name>
+  <Repository>ghcr.io/prolife86/whiskywise:latest</Repository>
+  <Registry/>
+  <Network>eth1</Network>
+  <MyIP>192.168.1.XX</MyIP>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <ReadMe/>
+  <Overview>Your Personal Spirits Guide&#13;
+&#13;
+Whisky Wise is a lightweight, containerized personal assistant for spirits enthusiasts. Whether you're tracking a growing collection or cataloging the nuance of a rare Islay peat, Whisky Wise provides a clean, distraction-free interface to manage your journey through the world of whisky.</Overview>
+  <Category/>
+  <WebUI>http://[IP]:[PORT:5000]</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/prolife86/WhiskyWise/refs/heads/main/Icons/Icon%201.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>1775652522</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="App Data" Target="/data" Default="" Mode="rw" Description="Always map the data directory to a local volume. &#13;&#10;If you delete the container without a volume mapping, you will lose your tasting history and collection data." Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/WhiskyWise/</Config>
+  <Config Name="WegUI Port" Target="" Default="5000" Mode="tcp" Description="WebUI Port" Type="Port" Display="always" Required="false" Mask="false">5000</Config>
+  <Config Name="Upload Folder" Target="UPLOAD_FOLDER" Default="" Mode="" Description="Storage Folder for pictures inside the container" Type="Variable" Display="always" Required="false" Mask="false">/data/uploads</Config>
+  <Config Name="Database Path" Target="DATABASE_PATH" Default="" Mode="" Description="SQLite DB path" Type="Variable" Display="always" Required="false" Mask="false">/data/db/whiskywise.db</Config>
+  <Config Name="Secret Key" Target="SECRET_KEY" Default="" Mode="" Description="Flask session secret &#x2014; must be changed" Type="Variable" Display="always" Required="false" Mask="true">change-this-to-a-long-random-secret</Config>
+  <Config Name="Time Zone" Target="TZ" Default="" Mode="" Description="Set to your timezone per https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List" Type="Variable" Display="always" Required="false" Mask="false">Europe/Amsterdam</Config>
+  <TailscaleStateDir/>
+</Container>

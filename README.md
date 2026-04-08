@@ -61,6 +61,7 @@ To restore:
 ```bash
 docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
   tar xzf /backup/whiskywise-backup.tar.gz -C /
+```
 
 ## 🛠 Advanced Configuration
 ### Docker Compose Example
@@ -78,7 +79,6 @@ services:
       - DATABASE_PATH=/data/db/whiskywise.db
       - UPLOAD_FOLDER=/data/uploads
     restart: unless-stopped
-
 ```
 
 ### Volume Persistence

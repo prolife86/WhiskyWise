@@ -87,7 +87,8 @@ Download the my-WhiskyWise.xml and adjust the lines:
 - #6 (Network)
 - #7 (IP Adress)
 - #31 (Secret Key)
->Upload the adjusted my-WhiskyWise.xml to your flashdrive via: Main, the browse icon in front of the Flash drive.
+
+Upload the adjusted my-WhiskyWise.xml to your flashdrive via: Main, the browse icon in front of the Flash drive.
 Navigate to: config -> plugins -> dockerMan -> templates-user and then upload and reboot.
 You can also use the information to enter this manually into Unraid and not reboot.
 

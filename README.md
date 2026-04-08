@@ -68,14 +68,14 @@ docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
 If you prefer to integrate Whisky Wise into an existing stack, use this docker-compose.yml snippet:
 ```yaml
 services:
-  whisky-wise:
-    container_name: whiskywise
+  whiskywise:
+    image: ghcr.io/prolife86/whiskywise:main
     ports:
       - "5000:5000"
     volumes:
-      - whiskywise_data:/data
+      - /mnt/user/appdata/WhiskyWise:/data
     environment:
-      - SECRET_KEY=change-this-to-a-long-random-secret
+      - SECRET_KEY=7335bd4e2f8105c2d1f6e6ab0020d2c0908136f026dda30f43eebf4fa4084f40
       - DATABASE_PATH=/data/db/whiskywise.db
       - UPLOAD_FOLDER=/data/uploads
     restart: unless-stopped

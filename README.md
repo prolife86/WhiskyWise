@@ -68,20 +68,20 @@ If you prefer to integrate Whisky Wise into an existing stack, use this docker-c
 ```yaml
 services:
   whiskywise:
-    image: ghcr.io/prolife86/whiskywise:main
+    image: ghcr.io/prolife86/whiskywise:latest
     ports:
       - "5000:5000"
     volumes:
       - /mnt/user/appdata/WhiskyWise:/data
     environment:
-      - SECRET_KEY=7335bd4e2f8105c2d1f6e6ab0020d2c0908136f026dda30f43eebf4fa4084f40
+      - SECRET_KEY=change-this-to-a-long-random-secret
       - DATABASE_PATH=/data/db/whiskywise.db
       - UPLOAD_FOLDER=/data/uploads
     restart: unless-stopped
 ```
 
 ### Volume Persistence
-> **Critical:** Always map the /app/data directory to a local volume.
+> **Critical:** Always map the data directory to a local volume.
 > If you delete the container without a volume mapping, you will lose your tasting history and collection data.
 
 ### Default login

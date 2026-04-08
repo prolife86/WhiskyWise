@@ -68,16 +68,16 @@ If you prefer to integrate Whisky Wise into an existing stack, use this docker-c
 ```yaml
 services:
   whisky-wise:
-    image: ghcr.io/yourusername/whisky-wise:latest
-    container_name: whisky_wise
-    restart: unless-stopped
+    container_name: whiskywise
     ports:
-      - "8080:80"
+      - "5000:5000"
     volumes:
-      - ./whisky_data:/app/data
+      - whiskywise_data:/data
     environment:
-      - NODE_ENV=production
-      - DB_TYPE=sqlite
+      - SECRET_KEY=change-this-to-a-long-random-secret
+      - DATABASE_PATH=/data/db/whiskywise.db
+      - UPLOAD_FOLDER=/data/uploads
+    restart: unless-stopped
 
 ```
 

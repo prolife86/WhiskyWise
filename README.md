@@ -16,7 +16,7 @@
  * **CSV Export** — Download your entire collection
  * **User Authentication** — Login required, password changeable
  * **Barcode Scanning** — Camera-based scanning for logging and tracking
- * **User Selection** — Multiuser login option and username changes
+ * **User Selection** — Multiuser login option and username changes _(Work in Progress)_
 
 ## 🚀 Getting Started
 The most reliable way to run Whisky Wise is via Docker. This ensures all dependencies (database, environment, and server) are perfectly configured out of the box.

@@ -303,7 +303,10 @@ main.content { flex:1; max-width:1100px; margin:0 auto; padding:1.5rem 1rem 4rem
         <a href="{{ url_for('new_whisky') }}" {% if request.endpoint=='new_whisky' %}class="active"{% endif %}>+ Add</a>
         <a href="{{ url_for('wishlist') }}"   {% if request.endpoint in ['wishlist','new_wishlist_item'] %}class="active"{% endif %}>Wishlist</a>
         <a href="{{ url_for('export_csv') }}">Export</a>
-        <a href="{{ url_for('change_password') }}">⚙</a>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('admin_panel') }}" {% if request.endpoint in ['admin_panel','admin_edit_user'] %}class="active"{% endif %} style="color:var(--amber-light);">👑 Admin</a>
+        {% endif %}
+        <a href="{{ url_for('settings') }}" {% if request.endpoint=='settings' %}class="active"{% endif %}>⚙</a>
         <a href="{{ url_for('logout') }}">Logout</a>
       </div>
       <button class="nav-hamburger" id="hamburger" aria-label="Menu">☰</button>
@@ -314,7 +317,10 @@ main.content { flex:1; max-width:1100px; margin:0 auto; padding:1.5rem 1rem 4rem
       <a href="{{ url_for('new_whisky') }}">➕ Add Whisky</a>
       <a href="{{ url_for('wishlist') }}">💫 Wishlist</a>
       <a href="{{ url_for('export_csv') }}">📤 Export CSV</a>
-      <a href="{{ url_for('change_password') }}">⚙ Settings</a>
+      {% if current_user.is_admin %}
+      <a href="{{ url_for('admin_panel') }}">👑 Admin Panel</a>
+      {% endif %}
+      <a href="{{ url_for('settings') }}">⚙ Settings</a>
       <a href="{{ url_for('logout') }}">Logout</a>
     </div>
   </nav>

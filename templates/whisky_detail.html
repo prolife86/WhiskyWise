@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}{{ w.name }} — WhiskyWise{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
+  <div style="flex:1;min-width:0;">
+    <a href="{{ url_for('collection') if not w.wishlist else url_for('wishlist') }}"
+       style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">
+      ← {{ 'Wishlist' if w.wishlist else 'Collection' }}
+    </a>
+    <h1 style="color:var(--grain);margin-top:0.3rem;word-break:break-word;">{{ w.name }}</h1>
+    {% if w.distillery %}
+      <p style="color:var(--amber-light);margin-top:0.2rem;">
+        {{ w.distillery }}{% if w.region %} · {{ w.region }}{% endif %}
+      </p>
+    {% endif %}
+    <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;align-items:center;">
+      <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
+      {% if w.retired %}<span class="status-pill status-retired">🚫 Retired</span>{% endif %}
+      {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile }}</span>{% endif %}
+      {% if w.age  %}<span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">{{ w.age }} yr</span>{% endif %}
+      {% if w.abv  %}<span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">{{ w.abv }}%</span>{% endif %}
+    </div>
+  </div>
+  {% if w.score is not none %}
+  <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;flex-shrink:0;">
+    <div class="score-badge large">{{ '%.1f'|format(w.score) }}</div>
+    <div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ash);">/ 10</div>
+  </div>
+  {% endif %}
+</div>
+
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+  <a href="{{ url_for('edit_whisky', wid=w.id) }}" class="btn btn-secondary">✏️ Edit</a>
+  <form method="POST" action="{{ url_for('delete_whisky', wid=w.id) }}"
+        onsubmit="return confirm('Permanently delete {{ w.name|replace("'","\\'")|replace('"','\\"') }}?')"
+        style="display:inline;">
+    <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
+  </form>
+</div>
+
+<!-- Photos -->
+{% if w.photo_front or w.photo_back or w.photo_cask or w.photo_barcode %}
+<div class="section-title">Photos</div>
+<div class="photo-grid" style="margin-bottom:1.5rem;">
+  {% if w.photo_front %}
+  <div>
+    <div class="photo-slot" style="cursor:default;">
+      <img src="{{ url_for('serve_photo', filename=w.photo_front) }}" alt="Front Label">
+    </div>
+    <div class="photo-slot-label">Front Label</div>
+  </div>
+  {% endif %}
+  {% if w.photo_back %}
+  <div>
+    <div class="photo-slot" style="cursor:default;">
+      <img src="{{ url_for('serve_photo', filename=w.photo_back) }}" alt="Back Label">
+    </div>
+    <div class="photo-slot-label">Back Label</div>
+  </div>
+  {% endif %}
+  {% if w.photo_cask %}
+  <div>
+    <div class="photo-slot" style="cursor:default;">
+      <img src="{{ url_for('serve_photo', filename=w.photo_cask) }}" alt="Cask / Bottle">
+    </div>
+    <div class="photo-slot-label">Cask / Bottle</div>
+  </div>
+  {% endif %}
+  {% if w.photo_barcode %}
+  <div>
+    <div class="photo-slot" style="cursor:default;">
+      <img src="{{ url_for('serve_photo', filename=w.photo_barcode) }}" alt="Barcode">
+    </div>
+    <div class="photo-slot-label">Barcode</div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Purchase Info -->
+{% if w.price or w.store or w.barcode %}
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header"><h3>🏪 Purchase Info</h3></div>
+  <div style="display:flex;flex-wrap:wrap;gap:1.5rem;">
+    {% if w.price %}
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Price</div>
+      <div style="font-size:1.1rem;color:var(--grain);">€{{ '%.2f'|format(w.price) }}</div>
+    </div>
+    {% endif %}
+    {% if w.store %}
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Store</div>
+      <div style="font-size:1rem;color:var(--grain);">{{ w.store }}</div>
+    </div>
+    {% endif %}
+    {% if w.barcode %}
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Barcode</div>
+      <div class="mono" style="font-size:0.95rem;color:var(--grain);">{{ w.barcode }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Tasting Notes -->
+{% if w.nose or w.palate or w.finish or w.notes %}
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header"><h3>👃 Tasting Notes</h3></div>
+  <div class="tasting-grid">
+    {% if w.nose   %}<div class="tasting-note"                                       ><h4>Nose</h4><p>{{ w.nose }}</p></div>{% endif %}
+    {% if w.palate %}<div class="tasting-note" style="border-left-color:var(--amber)"><h4>Palate</h4><p>{{ w.palate }}</p></div>{% endif %}
+    {% if w.finish %}<div class="tasting-note" style="border-left-color:var(--amber-light)"><h4>Finish</h4><p>{{ w.finish }}</p></div>{% endif %}
+    {% if w.notes  %}<div class="tasting-note" style="border-left-color:var(--smoke)"><h4>Notes</h4><p>{{ w.notes }}</p></div>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Wishlist notes -->
+{% if w.wishlist and w.wishlist_notes %}
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header"><h3>💫 Wishlist Notes</h3></div>
+  <p style="font-style:italic;color:var(--grain-mid);">"{{ w.wishlist_notes }}"</p>
+</div>
+{% endif %}
+
+<!-- Details -->
+<div class="card">
+  <div class="card-header"><h3>ℹ Details</h3></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;">
+    {% for label, val in [
+        ('Distillery', w.distillery),
+        ('Region',     w.region),
+        ('Age',        w.age),
+        ('ABV',        (('%.1f'|format(w.abv)) ~ '%') if w.abv else None)
+    ] %}
+    {% if val %}
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">{{ label }}</div>
+      <div style="font-size:0.95rem;color:var(--grain);">{{ val }}</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Added</div>
+      <div style="font-size:0.85rem;color:var(--grain);">{{ w.created_at.strftime('%d %b %Y') }}</div>
+    </div>
+    {% if w.updated_at and w.updated_at != w.created_at %}
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Updated</div>
+      <div style="font-size:0.85rem;color:var(--grain);">{{ w.updated_at.strftime('%d %b %Y') }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -16,7 +16,7 @@
  * **CSV Export** — Download your entire collection
  * **User Authentication** — Login required, password changeable
  * **Barcode Scanning** — Camera-based scanning for logging and tracking
- * **User Selection** — Multiuser login option and username changes _(Note: Work in Progress!)_
+ * **User Selection** — Multiuser login option and username changes
 
 ## 🚀 Getting Started
 The most reliable way to run Whisky Wise is via Docker. This ensures all dependencies (database, environment, and server) are perfectly configured out of the box.
@@ -100,6 +100,8 @@ You can also use the information to enter this manually into Unraid and not rebo
 - **Username:** `admin`
 - **Password:** `whiskywise`
 > ⚠️ Change this immediately via **⚙️ Settings → Change Password**
+
+For use of the adminpanel, navigate to http://[IP]:[Port]/admin
 
 ## 🫆 Barcode Scanning
 

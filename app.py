@@ -17,7 +17,7 @@ from PIL import Image, ImageOps
 
 app = Flask(__name__)
 
-APP_VERSION = '0.0.6'
+APP_VERSION = '1.0.0'
 
 # ── Config ────────────────────────────────────────────────────────────────────
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')

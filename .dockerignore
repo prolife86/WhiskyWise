@@ -1,6 +1,6 @@
 __pycache__
-Icons
-Screenshots
+Icons/
+Screenshots/
 my-WhiskyWise.xml
 .github/workflows
 *.pyc

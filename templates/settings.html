@@ -29,7 +29,7 @@
   <!-- Change Password -->
   <div class="card">
     <div class="card-header"><h3>🔑 Change Password</h3></div>
-    <form method="POST">
+    <form method="POST">a
       <input type="hidden" name="action" value="change_password">
       <div class="form-grid" style="margin-bottom:1rem;">
         <div class="form-group">
@@ -70,6 +70,10 @@
     <div>
       <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Bottles</div>
       <div style="color:var(--grain);">{{ current_user.whisky_count }}</div>
+    </div>
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">App Version</div>
+      <div style="color:var(--grain);font-family:'DM Mono',monospace;">v{{ app_version }}</div>
     </div>
   </div>
 </div>

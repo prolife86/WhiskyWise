@@ -163,7 +163,7 @@
         {% else %}
           <div class="placeholder" id="preview-front"><span>🏷️</span><span>Tap to add</span></div>
         {% endif %}
-        <input type="file" name="photo_front" accept="image/*" onchange="previewPhoto(this,'front')">
+        <input type="file" name="photo_front" accept="image/*" capture="environment" onchange="previewPhoto(this,'front')">
       </div>
       <div class="photo-slot-label">Front Label</div>
     </div>
@@ -184,7 +184,7 @@
         {% else %}
           <div class="placeholder" id="preview-back"><span>📋</span><span>Tap to add</span></div>
         {% endif %}
-        <input type="file" name="photo_back" accept="image/*" onchange="previewPhoto(this,'back')">
+        <input type="file" name="photo_back" accept="image/*" capture="environment" onchange="previewPhoto(this,'back')">
       </div>
       <div class="photo-slot-label">Back Label</div>
     </div>
@@ -205,7 +205,7 @@
         {% else %}
           <div class="placeholder" id="preview-cask"><span>🍾</span><span>Tap to add</span></div>
         {% endif %}
-        <input type="file" name="photo_cask" accept="image/*" onchange="previewPhoto(this,'cask')">
+        <input type="file" name="photo_cask" accept="image/*" capture="environment" onchange="previewPhoto(this,'cask')">
       </div>
       <div class="photo-slot-label">Cask / Bottle</div>
     </div>
@@ -226,7 +226,7 @@
         {% else %}
           <div class="placeholder" id="preview-barcode"><span>▌▌▌</span><span>Tap to add</span></div>
         {% endif %}
-        <input type="file" name="photo_barcode" accept="image/*" onchange="previewPhoto(this,'barcode')">
+        <input type="file" name="photo_barcode" accept="image/*" capture="environment" onchange="previewPhoto(this,'barcode')">
       </div>
       <div class="photo-slot-label">Barcode Photo</div>
     </div>

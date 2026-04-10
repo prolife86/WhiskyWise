@@ -16,7 +16,7 @@
       </p>
     {% endif %}
     <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;align-items:center;">
-      <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
+      {% if not w.wishlist %}<span class="status-pill status-{{ w.status }}">{{ w.status }}</span>{% endif %}
       {% if w.retired %}<span class="status-pill status-retired">🚫 Retired</span>{% endif %}
       {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile }}</span>{% endif %}
       {% if w.age  %}<span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">{{ w.age }} yr</span>{% endif %}
@@ -34,7 +34,8 @@
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;">
   <a href="{{ url_for('edit_whisky', wid=w.id) }}" class="btn btn-secondary">✏️ Edit</a>
   <form method="POST" action="{{ url_for('delete_whisky', wid=w.id) }}"
-        onsubmit="return confirm('Permanently delete {{ w.name|replace("'","\\'")|replace('"','\\"') }}?')"
+        onsubmit="return confirm('Delete ' + this.dataset.name + '?')"
+        data-name="{{ w.name | e }}"
         style="display:inline;">
     <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
   </form>
@@ -44,38 +45,34 @@
 {% if w.photo_front or w.photo_back or w.photo_cask or w.photo_barcode %}
 <div class="section-title">Photos</div>
 <div class="photo-grid" style="margin-bottom:1.5rem;">
-  {% if w.photo_front %}
+  {% for slot, label, photo in [
+      ('front',   'Front Label',   w.photo_front),
+      ('back',    'Back Label',    w.photo_back),
+      ('cask',    'Cask / Bottle', w.photo_cask),
+      ('barcode', 'Barcode',       w.photo_barcode)
+  ] %}
+  {% if photo %}
   <div>
-    <div class="photo-slot" style="cursor:default;">
-      <img src="{{ url_for('serve_photo', filename=w.photo_front) }}" alt="Front Label">
+    <div class="photo-slot" style="cursor:default;" id="pslot-{{ slot }}">
+      <img src="{{ url_for('serve_photo', filename=photo) }}" alt="{{ label }}"
+           id="pimg-{{ slot }}" style="width:100%;height:100%;object-fit:cover;display:block;">
+      <!-- Rotate button overlay -->
+      <button type="button"
+              onclick="rotatePhoto({{ w.id }}, '{{ slot }}')"
+              title="Rotate 90° clockwise"
+              style="position:absolute;bottom:6px;right:6px;
+                     background:rgba(26,18,10,0.75);border:1px solid rgba(200,131,42,0.5);
+                     border-radius:6px;color:var(--amber-light);font-size:1rem;
+                     width:32px;height:32px;cursor:pointer;display:flex;
+                     align-items:center;justify-content:center;
+                     transition:background 0.15s;z-index:2;"
+              onmouseover="this.style.background='rgba(200,131,42,0.35)'"
+              onmouseout="this.style.background='rgba(26,18,10,0.75)'">↻</button>
     </div>
-    <div class="photo-slot-label">Front Label</div>
+    <div class="photo-slot-label">{{ label }}</div>
   </div>
   {% endif %}
-  {% if w.photo_back %}
-  <div>
-    <div class="photo-slot" style="cursor:default;">
-      <img src="{{ url_for('serve_photo', filename=w.photo_back) }}" alt="Back Label">
-    </div>
-    <div class="photo-slot-label">Back Label</div>
-  </div>
-  {% endif %}
-  {% if w.photo_cask %}
-  <div>
-    <div class="photo-slot" style="cursor:default;">
-      <img src="{{ url_for('serve_photo', filename=w.photo_cask) }}" alt="Cask / Bottle">
-    </div>
-    <div class="photo-slot-label">Cask / Bottle</div>
-  </div>
-  {% endif %}
-  {% if w.photo_barcode %}
-  <div>
-    <div class="photo-slot" style="cursor:default;">
-      <img src="{{ url_for('serve_photo', filename=w.photo_barcode) }}" alt="Barcode">
-    </div>
-    <div class="photo-slot-label">Barcode</div>
-  </div>
-  {% endif %}
+  {% endfor %}
 </div>
 {% endif %}
 
@@ -157,4 +154,30 @@
   </div>
 </div>
 
+
+{% block extra_js %}
+<script>
+function rotatePhoto(wid, slot) {
+  const btn  = event.currentTarget;
+  const img  = document.getElementById('pimg-' + slot);
+  btn.textContent = '…';
+  btn.disabled = true;
+  fetch(`/api/photo/${wid}/${slot}/rotate`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        // Bust the browser cache by appending a timestamp to the src
+        const base = img.src.split('?')[0];
+        img.src = base + '?' + Date.now();
+      } else {
+        alert('Rotate failed: ' + (d.error || 'unknown error'));
+      }
+    })
+    .catch(() => alert('Network error — could not rotate photo.'))
+    .finally(() => {
+      btn.textContent = '↻';
+      btn.disabled = false;
+    });
+}
+</script>
 {% endblock %}

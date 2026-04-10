@@ -91,6 +91,7 @@ Download the my-WhiskyWise.xml and adjust the lines:
 Upload the adjusted my-WhiskyWise.xml to your flashdrive via: Main, the browse icon in front of the Flash drive.
 Navigate to: config -> plugins -> dockerMan -> templates-user and then upload and reboot.
 You can also use the information to enter this manually into Unraid and not reboot.
+(The icon can be added in via the advanced options)
 
 ### Volume Persistence
 > **Critical:** Always map the data directory to a local volume.

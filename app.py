@@ -1,7 +1,10 @@
 import os
+import re
 import csv
 import io
 from datetime import datetime
+from functools import wraps
+from urllib.parse import urlparse
 
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, send_file, abort)
@@ -10,14 +13,15 @@ from flask_login import (LoginManager, UserMixin, login_user, logout_user,
                           login_required, current_user)
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from PIL import Image
+from PIL import Image, ImageOps
 
 app = Flask(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
-db_path = os.environ.get('DATABASE_PATH', 'data/db/whiskywise.db')
+# Always resolve to absolute path so SQLite opens the right file regardless of cwd
+db_path = os.path.abspath(os.environ.get('DATABASE_PATH', 'data/db/whiskywise.db'))
 _db_dir = os.path.dirname(db_path)
 if _db_dir:
     os.makedirs(_db_dir, exist_ok=True)
@@ -25,7 +29,7 @@ if _db_dir:
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-upload_folder = os.environ.get('UPLOAD_FOLDER', 'data/uploads')
+upload_folder = os.path.abspath(os.environ.get('UPLOAD_FOLDER', 'data/uploads'))
 os.makedirs(upload_folder, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_folder
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
@@ -48,6 +52,7 @@ class User(UserMixin, db.Model):
     id            = db.Column(db.Integer, primary_key=True)
     username      = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    is_admin      = db.Column(db.Boolean, default=False, nullable=False)
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, pw):
@@ -56,43 +61,43 @@ class User(UserMixin, db.Model):
     def check_password(self, pw):
         return check_password_hash(self.password_hash, pw)
 
+    @property
+    def whisky_count(self):
+        return Whisky.query.filter_by(user_id=self.id, wishlist=False).count()
+
 
 class Whisky(db.Model):
-    id           = db.Column(db.Integer, primary_key=True)
-    user_id      = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    name         = db.Column(db.String(200), nullable=False)
-    distillery   = db.Column(db.String(200))
-    region       = db.Column(db.String(100))
-    age          = db.Column(db.String(20))
-    abv          = db.Column(db.Float)
-    barcode      = db.Column(db.String(100))
+    id            = db.Column(db.Integer, primary_key=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name          = db.Column(db.String(200), nullable=False)
+    distillery    = db.Column(db.String(200))
+    region        = db.Column(db.String(100))
+    age           = db.Column(db.String(20))
+    abv           = db.Column(db.Float)
+    barcode       = db.Column(db.String(100))
 
-    # Collection
-    status   = db.Column(db.String(20), default='stashed')  # open | stashed | finished
-    retired  = db.Column(db.Boolean, default=False)
-    price    = db.Column(db.Float)
-    store    = db.Column(db.String(200))
+    status        = db.Column(db.String(20), default='stashed')
+    retired       = db.Column(db.Boolean, default=False)
+    price         = db.Column(db.Float)
+    store         = db.Column(db.String(200))
 
-    # Tasting
     notes         = db.Column(db.Text)
     nose          = db.Column(db.Text)
     palate        = db.Column(db.Text)
     finish        = db.Column(db.Text)
     flavor_profile = db.Column(db.String(50))
-    score         = db.Column(db.Float)   # 0.0–10.0, nullable = unscored
+    score         = db.Column(db.Float)  # NULL = unscored; 0.0 is a valid score
 
-    # Photos
     photo_front   = db.Column(db.String(300))
     photo_back    = db.Column(db.String(300))
     photo_cask    = db.Column(db.String(300))
     photo_barcode = db.Column(db.String(300))
 
-    # Wishlist
     wishlist       = db.Column(db.Boolean, default=False)
     wishlist_notes = db.Column(db.Text)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='whiskies')
 
@@ -102,6 +107,19 @@ def load_user(uid):
     return db.session.get(User, int(uid))
 
 
+# ── Decorators ────────────────────────────────────────────────────────────────
+
+def admin_required(f):
+    """Must be stacked INSIDE @login_required so unauthenticated users get
+    redirected to login rather than receiving a bare 403."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def allowed_file(filename):
@@ -109,7 +127,6 @@ def allowed_file(filename):
 
 
 def save_photo(file, whisky_id, slot):
-    """Resize and persist an uploaded photo; returns stored filename or None."""
     if not file or not file.filename:
         return None
     if not allowed_file(file.filename):
@@ -122,6 +139,8 @@ def save_photo(file, whisky_id, slot):
     path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     try:
         img = Image.open(file)
+        # Auto-correct EXIF orientation so portrait photos aren't sideways
+        img = ImageOps.exif_transpose(img)
         if save_ext == 'jpg' and img.mode != 'RGB':
             img = img.convert('RGB')
         img.thumbnail((1200, 1200), Image.LANCZOS)
@@ -136,31 +155,36 @@ def save_photo(file, whisky_id, slot):
 
 
 def _float_or_none(val):
+    """Convert form string to float, returning None for empty/missing values.
+    Correctly handles '0' and '0.0' as valid zero scores."""
+    if val is None or str(val).strip() == '':
+        return None
     try:
-        return float(val) if val not in (None, '') else None
+        return float(val)
     except (ValueError, TypeError):
         return None
 
 
 def _fill_whisky(w, form):
     """Populate whisky fields from a form dict. Does NOT touch w.wishlist."""
-    w.name          = form.get('name', '').strip()
-    w.distillery    = form.get('distillery', '').strip()
-    w.region        = form.get('region', '').strip()
-    w.age           = form.get('age', '').strip()
-    w.abv           = _float_or_none(form.get('abv'))
-    w.barcode       = form.get('barcode', '').strip()
-    w.status        = form.get('status', 'stashed')
-    w.retired       = form.get('retired') == 'on'
-    w.price         = _float_or_none(form.get('price'))
-    w.store         = form.get('store', '').strip()
-    w.notes         = form.get('notes', '').strip()
-    w.nose          = form.get('nose', '').strip()
-    w.palate        = form.get('palate', '').strip()
-    w.finish        = form.get('finish', '').strip()
+    w.name           = form.get('name', '').strip()
+    w.distillery     = form.get('distillery', '').strip()
+    w.region         = form.get('region', '').strip()
+    w.age            = form.get('age', '').strip()
+    w.abv            = _float_or_none(form.get('abv'))
+    w.barcode        = form.get('barcode', '').strip()
+    w.status         = form.get('status', 'stashed')
+    w.retired        = form.get('retired') == 'on'
+    w.price          = _float_or_none(form.get('price'))
+    w.store          = form.get('store', '').strip()
+    w.notes          = form.get('notes', '').strip()
+    w.nose           = form.get('nose', '').strip()
+    w.palate         = form.get('palate', '').strip()
+    w.finish         = form.get('finish', '').strip()
     w.flavor_profile = form.get('flavor_profile', '').strip()
-    w.score         = _float_or_none(form.get('score'))
+    w.score          = _float_or_none(form.get('score'))
     w.wishlist_notes = form.get('wishlist_notes', '').strip()
+    w.updated_at     = datetime.utcnow()
 
 
 def _handle_photos(w, files):
@@ -172,16 +196,64 @@ def _handle_photos(w, files):
                 setattr(w, f'photo_{slot}', saved)
 
 
+def _validate_username(username, exclude_id=None):
+    """Return error string or None if valid."""
+    username = username.strip()
+    if not username:
+        return 'Username cannot be empty.'
+    if len(username) < 3:
+        return 'Username must be at least 3 characters.'
+    if len(username) > 40:
+        return 'Username must be 40 characters or fewer.'
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', username):
+        return 'Username may only contain letters, numbers, underscores, hyphens and dots.'
+    q = User.query.filter_by(username=username)
+    if exclude_id:
+        q = q.filter(User.id != exclude_id)
+    if q.first():
+        return f'Username "{username}" is already taken.'
+    return None
+
+
+def _safe_next(next_url):
+    """Only allow relative redirects to prevent open-redirect attacks."""
+    if not next_url:
+        return None
+    parsed = urlparse(next_url)
+    # Reject anything with a scheme or netloc (i.e. absolute/external URLs)
+    if parsed.scheme or parsed.netloc:
+        return None
+    return next_url
+
+
 def _init_db():
-    """Create tables and default admin user on first boot."""
     with app.app_context():
         db.create_all()
-        if not User.query.first():
-            admin = User(username='admin')
+
+        conn = db.engine.raw_connection()
+        try:
+            cur = conn.cursor()
+            cols = [row[1] for row in cur.execute('PRAGMA table_info("user")').fetchall()]
+            if 'is_admin' not in cols:
+                cur.execute('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0')
+                conn.commit()
+                print("[WhiskyWise] Migrated DB: added is_admin column.")
+        finally:
+            conn.close()
+
+        db.session.expire_all()
+
+        first = User.query.order_by(User.id).first()
+        if not first:
+            admin = User(username='admin', is_admin=True)
             admin.set_password('whiskywise')
             db.session.add(admin)
             db.session.commit()
-            print("[WhiskyWise] Default admin created — please change the password!")
+            print("[WhiskyWise] Default admin created — username: admin  password: whiskywise")
+        elif not first.is_admin:
+            first.is_admin = True
+            db.session.commit()
+            print(f"[WhiskyWise] Promoted '{first.username}' to admin.")
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -191,11 +263,12 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form.get('username', '')).first()
+        user = User.query.filter_by(username=request.form.get('username', '').strip()).first()
         if user and user.check_password(request.form.get('password', '')):
             login_user(user, remember=True)
-            return redirect(request.args.get('next') or url_for('index'))
-        flash('Invalid username or password', 'error')
+            # Validate next param to prevent open-redirect
+            return redirect(_safe_next(request.args.get('next')) or url_for('index'))
+        flash('Invalid username or password.', 'error')
     return render_template('login.html')
 
 
@@ -206,22 +279,135 @@ def logout():
     return redirect(url_for('login'))
 
 
-@app.route('/change-password', methods=['GET', 'POST'])
+@app.route('/settings', methods=['GET', 'POST'])
 @login_required
-def change_password():
+def settings():
     if request.method == 'POST':
-        if not current_user.check_password(request.form.get('current', '')):
-            flash('Current password is incorrect', 'error')
-        elif request.form.get('new') != request.form.get('confirm'):
-            flash('New passwords do not match', 'error')
-        elif len(request.form.get('new', '')) < 6:
-            flash('Password must be at least 6 characters', 'error')
-        else:
-            current_user.set_password(request.form['new'])
-            db.session.commit()
-            flash('Password changed successfully', 'success')
-            return redirect(url_for('index'))
-    return render_template('change_password.html')
+        action = request.form.get('action')
+
+        if action == 'change_username':
+            new_name = request.form.get('username', '').strip()
+            err = _validate_username(new_name, exclude_id=current_user.id)
+            if err:
+                flash(err, 'error')
+            else:
+                current_user.username = new_name
+                db.session.commit()
+                flash('Username updated successfully.', 'success')
+
+        elif action == 'change_password':
+            if not current_user.check_password(request.form.get('current', '')):
+                flash('Current password is incorrect.', 'error')
+            elif request.form.get('new') != request.form.get('confirm'):
+                flash('New passwords do not match.', 'error')
+            elif len(request.form.get('new', '')) < 6:
+                flash('Password must be at least 6 characters.', 'error')
+            else:
+                current_user.set_password(request.form['new'])
+                db.session.commit()
+                flash('Password changed successfully.', 'success')
+
+    return render_template('settings.html')
+
+
+# ── Admin panel ───────────────────────────────────────────────────────────────
+
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_panel():
+    users = User.query.order_by(User.id).all()
+    return render_template('admin.html', users=users)
+
+
+@app.route('/admin/user/new', methods=['POST'])
+@login_required
+@admin_required
+def admin_create_user():
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '').strip()
+    is_admin = request.form.get('is_admin') == 'on'
+
+    err = _validate_username(username)
+    if err:
+        flash(err, 'error')
+        return redirect(url_for('admin_panel'))
+    if len(password) < 6:
+        flash('Password must be at least 6 characters.', 'error')
+        return redirect(url_for('admin_panel'))
+
+    u = User(username=username, is_admin=is_admin)
+    u.set_password(password)
+    db.session.add(u)
+    db.session.commit()
+    flash(f'User "{username}" created.', 'success')
+    return redirect(url_for('admin_panel'))
+
+
+@app.route('/admin/user/<int:uid>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_user(uid):
+    u = db.session.get(User, uid)
+    if not u:
+        abort(404)
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'rename':
+            new_name = request.form.get('username', '').strip()
+            err = _validate_username(new_name, exclude_id=uid)
+            if err:
+                flash(err, 'error')
+            else:
+                old_name = u.username
+                u.username = new_name
+                db.session.commit()
+                flash(f'Renamed "{old_name}" → "{new_name}".', 'success')
+                if u.id == current_user.id:
+                    login_user(u, remember=True)
+
+        elif action == 'reset_password':
+            new_pw = request.form.get('password', '').strip()
+            if len(new_pw) < 6:
+                flash('Password must be at least 6 characters.', 'error')
+            else:
+                u.set_password(new_pw)
+                db.session.commit()
+                flash(f'Password reset for "{u.username}".', 'success')
+
+        elif action == 'toggle_admin':
+            if u.id == current_user.id:
+                flash('You cannot change your own admin status.', 'error')
+            else:
+                u.is_admin = not u.is_admin
+                db.session.commit()
+                state = 'granted' if u.is_admin else 'revoked'
+                flash(f'Admin {state} for "{u.username}".', 'success')
+
+        return redirect(url_for('admin_edit_user', uid=uid))
+
+    return render_template('admin_edit_user.html', u=u)
+
+
+@app.route('/admin/user/<int:uid>/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_user(uid):
+    u = db.session.get(User, uid)
+    if not u:
+        abort(404)
+    if u.id == current_user.id:
+        flash('You cannot delete your own account.', 'error')
+        return redirect(url_for('admin_panel'))
+    username = u.username
+    # Use synchronize_session='fetch' so the ORM identity map stays consistent
+    Whisky.query.filter_by(user_id=u.id).delete(synchronize_session='fetch')
+    db.session.delete(u)
+    db.session.commit()
+    flash(f'User "{username}" and all their data deleted.', 'info')
+    return redirect(url_for('admin_panel'))
 
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
@@ -254,7 +440,6 @@ def collection():
     status_filter = request.args.get('status', '')
 
     query = Whisky.query.filter_by(user_id=current_user.id, wishlist=False)
-
     if q:
         like = f'%{q}%'
         query = query.filter(db.or_(
@@ -300,7 +485,7 @@ def new_whisky():
         w = Whisky(user_id=current_user.id, wishlist=False)
         _fill_whisky(w, request.form)
         db.session.add(w)
-        db.session.flush()          # get w.id before saving photos
+        db.session.flush()
         _handle_photos(w, request.files)
         db.session.commit()
         flash('Whisky added!', 'success')
@@ -322,7 +507,6 @@ def edit_whisky(wid):
     if request.method == 'POST':
         _fill_whisky(w, request.form)
         _handle_photos(w, request.files)
-        w.updated_at = datetime.utcnow()
         db.session.commit()
         flash('Saved!', 'success')
         return redirect(url_for('whisky_detail', wid=w.id))
@@ -359,6 +543,25 @@ def new_wishlist_item():
     return render_template('wishlist_form.html')
 
 
+@app.route('/whisky/<int:wid>/edit-wishlist', methods=['GET', 'POST'])
+@login_required
+def edit_wishlist_item(wid):
+    w = Whisky.query.filter_by(id=wid, user_id=current_user.id, wishlist=True).first_or_404()
+    if request.method == 'POST':
+        w.name           = request.form.get('name', '').strip()
+        w.distillery     = request.form.get('distillery', '').strip()
+        w.region         = request.form.get('region', '').strip()
+        w.price          = _float_or_none(request.form.get('price'))
+        w.store          = request.form.get('store', '').strip()
+        w.barcode        = request.form.get('barcode', '').strip()
+        w.wishlist_notes = request.form.get('wishlist_notes', '').strip()
+        w.updated_at     = datetime.utcnow()
+        db.session.commit()
+        flash('Wishlist item updated.', 'success')
+        return redirect(url_for('wishlist'))
+    return render_template('wishlist_form.html', item=w)
+
+
 # ── API ───────────────────────────────────────────────────────────────────────
 
 @app.route('/api/barcode-lookup')
@@ -377,12 +580,44 @@ def barcode_lookup():
 @app.route('/api/photo/<path:filename>')
 @login_required
 def serve_photo(filename):
-    # Prevent path traversal: strip any directory components
+    """Serve a photo file. Ownership is implicit: filenames are prefixed with
+    the whisky ID (w{id}_slot_ts.ext). Any logged-in user of this self-hosted
+    instance can view photos — acceptable for a personal/family deployment."""
     safe_name = os.path.basename(filename)
     path = os.path.join(app.config['UPLOAD_FOLDER'], safe_name)
     if not os.path.isfile(path):
         abort(404)
     return send_file(path)
+
+
+@app.route('/api/photo/<int:wid>/<slot>/rotate', methods=['POST'])
+@login_required
+def rotate_photo(wid, slot):
+    """Rotate a stored photo 90 degrees clockwise and re-save in place."""
+    if slot not in ('front', 'back', 'cask', 'barcode'):
+        abort(400)
+    w = Whisky.query.filter_by(id=wid, user_id=current_user.id).first_or_404()
+    filename = getattr(w, f'photo_{slot}')
+    if not filename:
+        abort(404)
+    path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
+    if not os.path.isfile(path):
+        abort(404)
+    try:
+        img = Image.open(path)
+        # Rotate 90° clockwise (expand=True keeps full image, no cropping)
+        img = img.rotate(-90, expand=True)
+        ext = filename.rsplit('.', 1)[1].lower()
+        save_kwargs = {'optimize': True}
+        if ext == 'jpg':
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            save_kwargs['quality'] = 85
+        img.save(path, **save_kwargs)
+    except Exception as exc:
+        app.logger.error("Photo rotate failed: %s", exc)
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+    return jsonify({'ok': True})
 
 
 # ── Export ────────────────────────────────────────────────────────────────────
@@ -409,10 +644,22 @@ def export_csv():
             w.created_at.strftime('%Y-%m-%d'),
         ])
     output = io.BytesIO()
-    output.write(si.getvalue().encode('utf-8-sig'))   # utf-8-sig for Excel compat
+    output.write(si.getvalue().encode('utf-8-sig'))  # BOM for Excel compatibility
     output.seek(0)
     return send_file(output, mimetype='text/csv',
                      download_name='whiskywise_export.csv', as_attachment=True)
+
+
+# ── Error handlers ────────────────────────────────────────────────────────────
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('403.html'), 403
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('404.html'), 404
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────

@@ -17,6 +17,8 @@ from PIL import Image, ImageOps
 
 app = Flask(__name__)
 
+APP_VERSION = '0.0.6'
+
 # ── Config ────────────────────────────────────────────────────────────────────
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
@@ -44,6 +46,11 @@ FLAVOR_PROFILES = [
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+
+@app.context_processor
+def inject_globals():
+    return {'app_version': APP_VERSION}
 
 
 # ── Models ────────────────────────────────────────────────────────────────────

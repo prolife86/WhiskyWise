@@ -69,7 +69,7 @@
       <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
       <div style="display:flex;align-items:center;gap:0.5rem;">
         {% if w.price %}
-          <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">€{{ '%.0f'|format(w.price) }}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">€{{ '%.2f'|format(w.price) }}</span>
         {% endif %}
         {% if w.score is not none %}
           <div class="score-badge small">{{ '%.1f'|format(w.score) }}</div>

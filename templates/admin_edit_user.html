@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}Edit {{ u.username }} — Admin — WhiskyWise{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:1.25rem;">
+  <a href="{{ url_for('admin_panel') }}" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">← Admin Panel</a>
+  <h1 style="color:var(--grain);margin-top:0.3rem;">
+    Edit User: <span style="color:var(--amber-glow);">{{ u.username }}</span>
+    {% if u.is_admin %}<span style="font-size:1rem;"> 👑</span>{% endif %}
+  </h1>
+  <p style="font-size:0.85rem;margin-top:0.25rem;">
+    {{ u.whisky_count }} bottle{{ 's' if u.whisky_count != 1 }} · joined {{ u.created_at.strftime('%d %b %Y') }}
+    {% if u.id == current_user.id %} · <span style="color:var(--amber-light);">this is you</span>{% endif %}
+  </p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1rem;max-width:780px;">
+
+  <!-- Rename -->
+  <div class="card">
+    <div class="card-header"><h3>✏️ Rename User</h3></div>
+    <form method="POST">
+      <input type="hidden" name="action" value="rename">
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label>New Username</label>
+        <input type="text" name="username" value="{{ u.username }}"
+               required minlength="3" maxlength="40"
+               pattern="[a-zA-Z0-9_\-\.]+"
+               title="Letters, numbers, underscores, hyphens and dots only"
+               autocomplete="off">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Save Username</button>
+    </form>
+  </div>
+
+  <!-- Reset Password -->
+  <div class="card">
+    <div class="card-header"><h3>🔑 Reset Password</h3></div>
+    <p style="font-size:0.85rem;margin-bottom:1rem;color:var(--ash);">
+      Set a new password for this user. They should change it after logging in.
+    </p>
+    <form method="POST">
+      <input type="hidden" name="action" value="reset_password">
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label>New Password</label>
+        <div style="display:flex;gap:0.4rem;">
+          <input type="text" name="password" id="new-pw" required minlength="6"
+                 placeholder="Min 6 characters" autocomplete="off" style="flex:1;">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="generatePassword()">🎲</button>
+        </div>
+        <div id="pw-hint" style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--ash);margin-top:0.3rem;min-height:1em;"></div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Reset Password</button>
+    </form>
+  </div>
+
+  <!-- Admin toggle -->
+  <div class="card">
+    <div class="card-header"><h3>👑 Admin Access</h3></div>
+    <p style="font-size:0.85rem;margin-bottom:1rem;color:var(--ash);">
+      Admins can manage all users and access the admin panel.
+    </p>
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;padding:0.75rem;background:rgba(44,31,14,0.5);border-radius:8px;">
+      <div style="flex:1;">
+        <div style="font-size:0.9rem;color:var(--grain);">Current role:</div>
+        <div style="margin-top:0.2rem;">
+          {% if u.is_admin %}
+          <span class="status-pill status-open" style="background:rgba(200,131,42,0.15);color:var(--amber-glow);border-color:rgba(200,131,42,0.3);">👑 Admin</span>
+          {% else %}
+          <span class="status-pill status-stashed">User</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% if u.id == current_user.id %}
+    <p style="font-size:0.82rem;color:var(--ash);font-style:italic;">You cannot change your own admin status.</p>
+    {% else %}
+    <form method="POST" onsubmit="return confirmToggleAdmin(this)"
+          data-username="{{ u.username | e }}"
+          data-revoke="{{ 'true' if u.is_admin else 'false' }}">
+      <input type="hidden" name="action" value="toggle_admin">
+      <button type="submit" class="btn btn-full {% if u.is_admin %}btn-danger{% else %}btn-secondary{% endif %}">
+        {% if u.is_admin %}🚫 Revoke Admin{% else %}👑 Grant Admin{% endif %}
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  <!-- Delete user -->
+  <div class="card" style="border-color:rgba(139,38,53,0.3);">
+    <div class="card-header"><h3 style="color:#E06070;">🗑 Delete User</h3></div>
+    <p style="font-size:0.85rem;margin-bottom:1rem;color:var(--ash);">
+      Permanently deletes this account and <strong style="color:#E06070;">all {{ u.whisky_count }} bottle{{ 's' if u.whisky_count != 1 }}</strong> in their collection. This cannot be undone.
+    </p>
+    {% if u.id == current_user.id %}
+    <p style="font-size:0.82rem;color:var(--ash);font-style:italic;">You cannot delete your own account.</p>
+    {% else %}
+    <form method="POST" action="{{ url_for('admin_delete_user', uid=u.id) }}"
+          onsubmit="return confirmDelete(this)"
+          data-username="{{ u.username | e }}"
+          data-count="{{ u.whisky_count }}">
+      <button type="submit" class="btn btn-danger btn-full">Delete Account &amp; All Data</button>
+    </form>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generatePassword() {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$';
+  let pw = '';
+  for (let i = 0; i < 12; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+  const el = document.getElementById('new-pw');
+  el.value = pw;
+  el.type = 'text';
+  document.getElementById('pw-hint').textContent = '📋 Copy this before saving!';
+}
+
+function confirmDelete(form) {
+  const name  = form.dataset.username;
+  const count = parseInt(form.dataset.count, 10);
+  const msg   = count > 0
+    ? `Delete "${name}" and their ${count} bottle${count===1?'':'s'}? This cannot be undone.`
+    : `Delete "${name}"? This cannot be undone.`;
+  return confirm(msg);
+}
+
+function confirmToggleAdmin(form) {
+  const name   = form.dataset.username;
+  const revoke = form.dataset.revoke === 'true';
+  return confirm((revoke ? 'Revoke admin from' : 'Grant admin to') + ' "' + name + '"?');
+}
+</script>
+{% endblock %}

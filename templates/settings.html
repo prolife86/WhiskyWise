@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Settings — WhiskyWise{% endblock %}
+{% block content %}
+
+<h1 style="color:var(--amber-glow);margin-bottom:1.5rem;">⚙ Account Settings</h1>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;max-width:780px;">
+
+  <!-- Change Username -->
+  <div class="card">
+    <div class="card-header"><h3>✏️ Change Username</h3></div>
+    <p style="font-size:0.85rem;margin-bottom:1rem;">
+      Current username: <strong style="color:var(--amber-light);">{{ current_user.username }}</strong>
+    </p>
+    <form method="POST">
+      <input type="hidden" name="action" value="change_username">
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label>New Username</label>
+        <input type="text" name="username" value="{{ current_user.username }}"
+               required minlength="3" maxlength="40"
+               pattern="[a-zA-Z0-9_\-\.]+"
+               title="Letters, numbers, underscores, hyphens and dots only"
+               autocomplete="username">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Save Username</button>
+    </form>
+  </div>
+
+  <!-- Change Password -->
+  <div class="card">
+    <div class="card-header"><h3>🔑 Change Password</h3></div>
+    <form method="POST">
+      <input type="hidden" name="action" value="change_password">
+      <div class="form-grid" style="margin-bottom:1rem;">
+        <div class="form-group">
+          <label>Current Password</label>
+          <input type="password" name="current" required autocomplete="current-password">
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" name="new" required minlength="6" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" name="confirm" required minlength="6" autocomplete="new-password">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Change Password</button>
+    </form>
+  </div>
+
+</div>
+
+<!-- Account info -->
+<div class="card" style="margin-top:1rem;max-width:780px;">
+  <div class="card-header"><h3>ℹ Account Info</h3></div>
+  <div style="display:flex;flex-wrap:wrap;gap:1.5rem;">
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Username</div>
+      <div style="color:var(--grain);">{{ current_user.username }}</div>
+    </div>
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Role</div>
+      <div style="color:var(--grain);">{% if current_user.is_admin %}<span style="color:var(--amber-glow);">👑 Admin</span>{% else %}User{% endif %}</div>
+    </div>
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Member Since</div>
+      <div style="color:var(--grain);">{{ current_user.created_at.strftime('%d %b %Y') }}</div>
+    </div>
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Bottles</div>
+      <div style="color:var(--grain);">{{ current_user.whisky_count }}</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -50,7 +50,117 @@ login_manager.login_view = 'login'
 
 @app.context_processor
 def inject_globals():
-    return {'app_version': APP_VERSION}
+    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg}
+
+
+
+# ── Radar chart helper ──────────────────────────────────────────────────────────
+import math as _math
+
+_RADAR_AXES   = ['woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery']
+_RADAR_LABELS = ['Woody', 'Smoky', 'Cereal', 'Floral', 'Fruity', 'Medicinal', 'Fiery']
+_N = 7
+_R = 100
+
+
+def _pt(r, i):
+    angle = (i / _N * 2 * _math.pi) - (_math.pi / 2)
+    return (round(r * _math.cos(angle), 3), round(r * _math.sin(angle), 3))
+
+
+def render_radar_svg(w, interactive=False):
+    """Return a complete SVG string for the flavour radar.
+    interactive=True adds clickable cells for the form/edit view."""
+    vals = [getattr(w, 'radar_' + a, 0) or 0 for a in _RADAR_AXES] if w else [0] * _N
+    has_data = any(v > 0 for v in vals)
+    out = []
+
+    out.append('<svg viewBox="-145 -145 290 290" width="100%" '
+               'style="max-width:300px;display:block;margin:0 auto;">')
+
+    # Background rings
+    for ring in range(1, 6):
+        pts = ' '.join('%s,%s' % _pt(ring / 5 * _R, i) for i in range(_N))
+        fill = 'rgba(200,131,42,0.04)' if ring % 2 == 0 else 'none'
+        out.append('  <polygon points="%s" fill="%s" '
+                   'stroke="rgba(200,131,42,0.18)" stroke-width="0.8"/>' % (pts, fill))
+
+    # Ring level numbers along vertical axis
+    for ring in range(1, 6):
+        out.append('  <text x="3" y="%s" font-family="DM Mono,monospace" '
+                   'font-size="7" fill="rgba(200,131,42,0.5)">%d</text>'
+                   % (round(-ring / 5 * _R - 2, 1), ring))
+
+    # Axis spokes
+    for i in range(_N):
+        x2, y2 = _pt(_R, i)
+        out.append('  <line x1="0" y1="0" x2="%s" y2="%s" '
+                   'stroke="rgba(200,131,42,0.25)" stroke-width="1"/>' % (x2, y2))
+
+    # Data polygon
+    if has_data or interactive:
+        dpts = ' '.join('%s,%s' % _pt(max(vals[i], 0) / 5 * _R, i) for i in range(_N))
+        out.append('  <polygon id="radar-polygon" points="%s" '
+                   'fill="rgba(200,131,42,0.22)" stroke="#C8832A" '
+                   'stroke-width="2" stroke-linejoin="round"/>' % dpts)
+
+    # Dot markers
+    for i, v in enumerate(vals):
+        if v > 0:
+            dx, dy = _pt(v / 5 * _R, i)
+            out.append('  <circle cx="%s" cy="%s" r="4" fill="#C8832A" '
+                       'stroke="#1A120A" stroke-width="1.5"/>' % (dx, dy))
+
+    # Interactive click cells (one wedge-slice per axis per level)
+    if interactive:
+        half_gap = _math.pi / _N * 0.88
+        for i in range(_N):
+            ac = (i / _N * 2 * _math.pi) - (_math.pi / 2)
+            a1 = ac - half_gap
+            a2 = ac + half_gap
+            axis_name = _RADAR_AXES[i]
+            cur_val = vals[i]
+            for level in range(1, 6):
+                ir = (level - 1) / 5 * _R
+                or_ = level / 5 * _R
+                cell_pts = (
+                    '%s,%s %s,%s %s,%s %s,%s' % (
+                        round(ir  * _math.cos(a1), 2), round(ir  * _math.sin(a1), 2),
+                        round(or_ * _math.cos(a1), 2), round(or_ * _math.sin(a1), 2),
+                        round(or_ * _math.cos(a2), 2), round(or_ * _math.sin(a2), 2),
+                        round(ir  * _math.cos(a2), 2), round(ir  * _math.sin(a2), 2),
+                    )
+                )
+                active = (cur_val == level)
+                fill   = 'rgba(200,131,42,0.35)' if active else 'rgba(0,0,0,0)'
+                hover_in  = "this.style.fill='rgba(200,131,42,0.2)'"
+                hover_out = "this.style.fill='%s'" % fill
+                onclick   = "radarSetVal('%s',%d)" % (axis_name, level)
+                out.append(
+                    '  <polygon points="%s" fill="%s" stroke="none" '
+                    'style="cursor:pointer;" onclick="%s" '
+                    'onmouseover="%s" onmouseout="%s"/>'
+                    % (cell_pts, fill, onclick, hover_in, hover_out)
+                )
+
+    # Axis labels
+    for i, label in enumerate(_RADAR_LABELS):
+        lx, ly = _pt(122, i)
+        v = vals[i]
+        color = '#F5C670' if v > 0 else '#9C8E7C'
+        if lx > 10:    anchor = 'start'
+        elif lx < -10: anchor = 'end'
+        else:           anchor = 'middle'
+        baseline = 'auto' if ly > 5 else ('hanging' if ly < -5 else 'middle')
+        val_str = ' %d/5' % v if v > 0 else ''
+        out.append(
+            '  <text x="%s" y="%s" text-anchor="%s" dominant-baseline="%s" '
+            'font-family="DM Mono,monospace" font-size="10" fill="%s">%s%s</text>'
+            % (lx, ly, anchor, baseline, color, label, val_str)
+        )
+
+    out.append('</svg>')
+    return '\n'.join(out)
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -99,6 +209,15 @@ class Whisky(db.Model):
     photo_back    = db.Column(db.String(300))
     photo_cask    = db.Column(db.String(300))
     photo_barcode = db.Column(db.String(300))
+
+    # Flavour radar (0 = unset, 1–5 intensity)
+    radar_woody      = db.Column(db.Integer, default=0)
+    radar_smoky      = db.Column(db.Integer, default=0)
+    radar_cereal     = db.Column(db.Integer, default=0)
+    radar_floral     = db.Column(db.Integer, default=0)
+    radar_fruity     = db.Column(db.Integer, default=0)
+    radar_medicinal  = db.Column(db.Integer, default=0)
+    radar_fiery      = db.Column(db.Integer, default=0)
 
     wishlist       = db.Column(db.Boolean, default=False)
     wishlist_notes = db.Column(db.Text)
@@ -191,6 +310,14 @@ def _fill_whisky(w, form):
     w.flavor_profile = form.get('flavor_profile', '').strip()
     w.score          = _float_or_none(form.get('score'))
     w.wishlist_notes = form.get('wishlist_notes', '').strip()
+    # Radar values — clamp to 0–5
+    for axis in ('woody','smoky','cereal','floral','fruity','medicinal','fiery'):
+        raw = form.get(f'radar_{axis}', '0')
+        try:
+            val = max(0, min(5, int(raw)))
+        except (ValueError, TypeError):
+            val = 0
+        setattr(w, f'radar_{axis}', val)
     w.updated_at     = datetime.utcnow()
 
 
@@ -245,6 +372,14 @@ def _init_db():
                 cur.execute('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0')
                 conn.commit()
                 print("[WhiskyWise] Migrated DB: added is_admin column.")
+            # Radar columns (added in v1.1.0)
+            radar_axes = ['woody','smoky','cereal','floral','fruity','medicinal','fiery']
+            whisky_cols = [row[1] for row in cur.execute('PRAGMA table_info("whisky")').fetchall()]
+            for axis in radar_axes:
+                col = f'radar_{axis}'
+                if col not in whisky_cols:
+                    cur.execute(f'ALTER TABLE whisky ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0')
+            conn.commit()
         finally:
             conn.close()
 

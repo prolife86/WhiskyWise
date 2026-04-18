@@ -116,6 +116,17 @@
 </div>
 {% endif %}
 
+<!-- Flavour Radar -->
+{% if w.radar_woody or w.radar_smoky or w.radar_cereal or w.radar_floral or w.radar_fruity or w.radar_medicinal or w.radar_fiery %}
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header">
+    <h3>🕸 Flavour Radar</h3>
+    <a href="{{ url_for('edit_whisky', wid=w.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+  </div>
+  {{ render_radar_svg(w, interactive=False) | safe }}
+</div>
+{% endif %}
+
 <!-- Wishlist notes -->
 {% if w.wishlist and w.wishlist_notes %}
 <div class="card" style="margin-bottom:1rem;">

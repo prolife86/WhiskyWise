@@ -141,6 +141,32 @@
   </div>
 </div>
 
+
+<!-- Flavour Radar -->
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header">
+    <h3>🕸 Flavour Radar</h3>
+    <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--ash);">Click a ring to set intensity 1–5</span>
+  </div>
+
+  <!-- Hidden inputs that get submitted with the form -->
+  {% set radar_axes = ['woody','smoky','cereal','floral','fruity','medicinal','fiery'] %}
+  {% for axis in radar_axes %}
+  <input type="hidden" name="radar_{{ axis }}" id="radar-{{ axis }}"
+         value="{{ (whisky | attr('radar_' ~ axis)) if whisky else 0 }}">
+  {% endfor %}
+
+  <!-- SVG rendered server-side; JS will update polygon on click -->
+  <div id="radar-container">
+    {{ render_radar_svg(whisky, interactive=True) | safe }}
+  </div>
+
+  <!-- Clear button -->
+  <div style="text-align:center;margin-top:0.75rem;">
+    <button type="button" class="btn btn-ghost btn-sm" onclick="radarClearAll()">✕ Clear all</button>
+  </div>
+</div>
+
 <!-- Photos -->
 <div class="card" style="margin-bottom:1rem;">
   <div class="card-header"><h3>📸 Photos</h3></div>
@@ -292,6 +318,79 @@ function clearScore() {
     scoreManual.value        = init.toFixed(1);
   }
 })();
+
+
+// ── Flavour Radar ─────────────────────────────────────────────────────────────
+const _RADAR_AXES = ['woody','smoky','cereal','floral','fruity','medicinal','fiery'];
+const _RADAR_R    = 100;
+const _RADAR_N    = 7;
+
+function _radarPt(r, i) {
+  const angle = (i / _RADAR_N * 2 * Math.PI) - (Math.PI / 2);
+  return [parseFloat((r * Math.cos(angle)).toFixed(3)),
+          parseFloat((r * Math.sin(angle)).toFixed(3))];
+}
+
+function _radarVals() {
+  return _RADAR_AXES.map(a => parseInt(document.getElementById('radar-' + a).value) || 0);
+}
+
+function _radarUpdatePolygon() {
+  const vals = _radarVals();
+
+  // Update the main data polygon
+  const pts = vals.map((v, i) => {
+    const p = _radarPt(Math.max(v, 0) / 5 * _RADAR_R, i);
+    return p[0] + ',' + p[1];
+  }).join(' ');
+  const poly = document.getElementById('radar-polygon');
+  if (poly) poly.setAttribute('points', pts);
+
+  // Refresh dot markers
+  const svg = document.querySelector('#radar-container svg');
+  if (!svg) return;
+  svg.querySelectorAll('.radar-dot').forEach(el => el.remove());
+  vals.forEach((v, i) => {
+    if (v > 0) {
+      const p = _radarPt(v / 5 * _RADAR_R, i);
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', p[0]);
+      circle.setAttribute('cy', p[1]);
+      circle.setAttribute('r', '4');
+      circle.setAttribute('fill', '#C8832A');
+      circle.setAttribute('stroke', '#1A120A');
+      circle.setAttribute('stroke-width', '1.5');
+      circle.classList.add('radar-dot');
+      svg.appendChild(circle);
+    }
+  });
+
+  // Refresh cell highlight fills
+  svg.querySelectorAll('polygon[onclick]').forEach(el => {
+    const m = el.getAttribute('onclick').match(/radarSetVal\('(\w+)',(\d+)\)/);
+    if (!m) return;
+    const cur    = parseInt(document.getElementById('radar-' + m[1]).value) || 0;
+    const active = (cur === parseInt(m[2]));
+    const fill   = active ? 'rgba(200,131,42,0.35)' : 'rgba(0,0,0,0)';
+    el.setAttribute('fill', fill);
+    el.setAttribute('onmouseout', "this.style.fill='" + fill + "'");
+  });
+}
+
+function radarSetVal(axis, level) {
+  const el  = document.getElementById('radar-' + axis);
+  const cur = parseInt(el.value) || 0;
+  el.value  = (cur === level) ? 0 : level; // toggle off if same level tapped again
+  _radarUpdatePolygon();
+}
+
+function radarClearAll() {
+  _RADAR_AXES.forEach(a => { document.getElementById('radar-' + a).value = 0; });
+  _radarUpdatePolygon();
+}
+
+// Sync polygon with stored values on page load
+_radarUpdatePolygon();
 
 // ── Rotate saved photo (edit mode) ───────────────────────────────────────────
 function rotateExistingPhoto(wid, slot) {

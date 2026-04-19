@@ -1,443 +1,55 @@
 {% extends 'base.html' %}
-{% block title %}{% if whisky %}Edit {{ whisky.name }}{% else %}Add Whisky{% endif %} — WhiskyWise{% endblock %}
+{% block title %}{% if item %}Edit Wishlist Item{% else %}Add to Wishlist{% endif %} — WhiskyWise{% endblock %}
 {% block content %}
 <div style="margin-bottom:1.25rem;">
-  {% if whisky %}
-  <a href="{{ url_for('whisky_detail', wid=whisky.id) }}" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">← Back</a>
-  <h1 style="color:var(--grain);margin-top:0.3rem;">Edit Whisky</h1>
-  {% else %}
-  <a href="{{ url_for('collection') }}" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">← Collection</a>
-  <h1 style="color:var(--grain);margin-top:0.3rem;">Add New Whisky</h1>
-  {% endif %}
+  <a href="{{ url_for('wishlist') }}" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">← Wishlist</a>
+  <h1 style="color:var(--grain);margin-top:0.3rem;">{% if item %}Edit Wishlist Item{% else %}Add to Wishlist{% endif %}</h1>
 </div>
-
-<form method="POST" enctype="multipart/form-data" id="whisky-form">
-
-<!-- Basic Info -->
-<div class="card" style="margin-bottom:1rem;">
-  <div class="card-header"><h3>🥃 Basic Information</h3></div>
+<form method="POST">
+<div class="card">
   <div class="form-grid form-grid-2">
     <div class="form-group" style="grid-column:1/-1;">
       <label>Whisky Name *</label>
-      <input type="text" name="name" value="{{ whisky.name if whisky else '' }}" required placeholder="e.g. Glenfarclas 15 Year Old">
+      <input type="text" name="name" required placeholder="e.g. Ardbeg Uigeadail"
+             value="{{ item.name if item else '' }}">
     </div>
     <div class="form-group">
       <label>Distillery</label>
-      <input type="text" name="distillery" value="{{ whisky.distillery if whisky else '' }}" placeholder="e.g. Glenfarclas">
+      <input type="text" name="distillery" placeholder="e.g. Ardbeg"
+             value="{{ item.distillery if item else '' }}">
     </div>
     <div class="form-group">
       <label>Region</label>
-      <input type="text" name="region" value="{{ whisky.region if whisky else '' }}" placeholder="e.g. Speyside">
+      <input type="text" name="region" placeholder="e.g. Islay"
+             value="{{ item.region if item else '' }}">
     </div>
     <div class="form-group">
-      <label>Age Statement</label>
-      <input type="text" name="age" value="{{ whisky.age if whisky else '' }}" placeholder="e.g. 15 or NAS">
+      <label>Expected Price (€)</label>
+      <input type="number" name="price" step="0.01" min="0" placeholder="e.g. 69.95"
+             value="{{ '%.2f'|format(item.price) if item and item.price is not none else '' }}">
     </div>
     <div class="form-group">
-      <label>ABV (%)</label>
-      <input type="number" name="abv" value="{{ whisky.abv if whisky else '' }}" step="0.1" min="0" max="100" placeholder="46.0">
+      <label>Store / Where to Buy</label>
+      <input type="text" name="store" placeholder="e.g. Gall &amp; Gall"
+             value="{{ item.store if item else '' }}">
     </div>
     <div class="form-group">
-      <label>Barcode</label>
+      <label>Barcode (optional)</label>
       <div style="display:flex;gap:0.4rem;">
-        <input type="text" name="barcode" id="barcode" value="{{ whisky.barcode if whisky else '' }}" placeholder="Scan or enter barcode" style="flex:1;">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="openScanModal('barcode')">📷 Scan</button>
+        <input type="text" name="barcode" id="barcode" placeholder="Scan or enter barcode"
+               value="{{ item.barcode if item else '' }}" style="flex:1;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openScanModal('barcode')">📷</button>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- Collection Status -->
-<div class="card" style="margin-bottom:1rem;">
-  <div class="card-header"><h3>📦 Collection Status</h3></div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group">
-      <label>Status</label>
-      <select name="status">
-        <option value="stashed" {% if not whisky or whisky.status=='stashed' %}selected{% endif %}>📦 Stashed</option>
-        <option value="open"    {% if whisky and whisky.status=='open'    %}selected{% endif %}>🔓 Open</option>
-        <option value="finished"{% if whisky and whisky.status=='finished'%}selected{% endif %}>🏁 Finished</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Price (€)</label>
-      <input type="number" name="price" value="{{ whisky.price if whisky else '' }}" step="0.01" min="0" placeholder="e.g. 49.95">
-    </div>
-    <div class="form-group">
-      <label>Store / Source</label>
-      <input type="text" name="store" value="{{ whisky.store if whisky else '' }}" placeholder="e.g. The Whisky Exchange">
-    </div>
-    <div class="form-group" style="justify-content:flex-end;padding-top:1.2rem;">
-      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;font-size:0.9rem;color:var(--grain-mid);">
-        <input type="checkbox" name="retired" {% if whisky and whisky.retired %}checked{% endif %} style="accent-color:var(--amber);width:16px;height:16px;">
-        <span>🚫 Mark as Retired (no longer for sale)</span>
-      </label>
+    <div class="form-group" style="grid-column:1/-1;">
+      <label>Notes / Why You Want It</label>
+      <textarea name="wishlist_notes" placeholder="Why is this on your list? What have you heard about it?">{{ item.wishlist_notes if item else '' }}</textarea>
     </div>
   </div>
 </div>
-
-<!-- Tasting Notes & Score -->
-<div class="card" style="margin-bottom:1rem;">
-  <div class="card-header"><h3>👃 Tasting Notes &amp; Score</h3></div>
-
-  <!-- Score: hidden input is what gets submitted; slider/manual are purely UI -->
-  <div class="section-title">Score</div>
-  <input type="hidden" name="score" id="score-value"
-         value="{{ '%.1f'|format(whisky.score) if whisky and whisky.score is not none else '' }}">
-  <div style="max-width:320px;margin-bottom:1.5rem;">
-    <div class="score-display" id="score-display">
-      {{ '%.1f'|format(whisky.score) if whisky and whisky.score is not none else '—' }}
-    </div>
-    <input type="range" id="score-slider" class="score-slider"
-           min="0" max="10" step="0.1"
-           value="{{ whisky.score if whisky and whisky.score is not none else 0 }}"
-           oninput="onSlider(this.value)">
-    <div class="score-ticks">
-      <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
-      <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
-    </div>
-    <div style="display:flex;gap:0.5rem;margin-top:0.75rem;align-items:center;">
-      <input type="number" id="score-manual" min="0" max="10" step="0.1"
-             value="{{ '%.1f'|format(whisky.score) if whisky and whisky.score is not none else '' }}"
-             placeholder="Type a score 0–10"
-             oninput="onManual(this.value)"
-             style="flex:1;background:rgba(44,31,14,0.8);border:1px solid rgba(200,131,42,0.25);
-                    border-radius:6px;color:var(--grain);padding:0.5rem 0.75rem;
-                    font-family:'Libre Baskerville',serif;font-size:0.95rem;">
-      <button type="button" class="btn btn-ghost btn-sm" onclick="clearScore()">Clear</button>
-    </div>
-  </div>
-
-  <!-- Flavor Profile -->
-  <div class="section-title">Flavor Profile</div>
-  <div class="form-group" style="max-width:280px;margin-bottom:1.5rem;">
-    <select name="flavor_profile">
-      <option value="">— Select flavor profile —</option>
-      {% for f in flavor_profiles %}
-      <option value="{{ f }}" {% if whisky and whisky.flavor_profile == f %}selected{% endif %}>{{ f|capitalize }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <!-- Notes -->
-  <div class="section-title">Tasting Notes</div>
-  <div class="form-grid form-grid-2">
-    <div class="form-group">
-      <label>Nose</label>
-      <textarea name="nose" placeholder="Aromas on the nose…">{{ whisky.nose if whisky else '' }}</textarea>
-    </div>
-    <div class="form-group">
-      <label>Palate</label>
-      <textarea name="palate" placeholder="Taste on the palate…">{{ whisky.palate if whisky else '' }}</textarea>
-    </div>
-    <div class="form-group">
-      <label>Finish</label>
-      <textarea name="finish" placeholder="The finish and aftertaste…">{{ whisky.finish if whisky else '' }}</textarea>
-    </div>
-    <div class="form-group">
-      <label>General Notes</label>
-      <textarea name="notes" placeholder="Any other notes or observations…">{{ whisky.notes if whisky else '' }}</textarea>
-    </div>
-  </div>
+<div style="display:flex;gap:0.75rem;margin-top:1rem;">
+  <button type="submit" class="btn btn-primary">{% if item %}💾 Save Changes{% else %}💫 Add to Wishlist{% endif %}</button>
+  <a href="{{ url_for('wishlist') }}" class="btn btn-ghost">Cancel</a>
 </div>
-
-
-<!-- Flavour Radar -->
-<div class="card" style="margin-bottom:1rem;">
-  <div class="card-header">
-    <h3>🕸 Flavour Radar</h3>
-    <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--ash);">Click a ring to set intensity 1–5</span>
-  </div>
-
-  <!-- Hidden inputs that get submitted with the form -->
-  {% set radar_axes = ['woody','smoky','cereal','floral','fruity','medicinal','fiery'] %}
-  {% for axis in radar_axes %}
-  <input type="hidden" name="radar_{{ axis }}" id="radar-{{ axis }}"
-         value="{{ (whisky | attr('radar_' ~ axis) | default(0)) if whisky else 0 }}">
-  {% endfor %}
-
-  <!-- SVG rendered server-side; JS will update polygon on click -->
-  <div id="radar-container">
-    {{ render_radar_svg(whisky, interactive=True) | safe }}
-  </div>
-  <p id="radar-hint" style="text-align:center;font-family:'DM Mono',monospace;
-     font-size:0.72rem;color:var(--ash);margin-top:0.5rem;">
-    Tap any segment to set intensity (1 = faint · 5 = dominant) — tap again to clear
-  </p>
-
-  <!-- Clear button -->
-  <div style="text-align:center;margin-top:0.75rem;">
-    <button type="button" class="btn btn-ghost btn-sm" onclick="radarClearAll()">✕ Clear all</button>
-  </div>
-</div>
-
-<!-- Photos -->
-<div class="card" style="margin-bottom:1rem;">
-  <div class="card-header"><h3>📸 Photos</h3></div>
-  <p style="font-size:0.82rem;margin-bottom:1rem;">Tap a slot to upload (max 16 MB each, auto-resized to 1200 px)</p>
-  <div class="photo-grid">
-
-    <div>
-      <div class="photo-slot" id="slot-front">
-        {% if whisky and whisky.photo_front %}
-          <img src="{{ url_for('serve_photo', filename=whisky.photo_front) }}" alt="Front" id="preview-front">
-          <button type="button"
-                  onclick="rotateExistingPhoto({{ whisky.id }}, 'front')"
-                  title="Rotate 90° clockwise"
-                  style="position:absolute;bottom:6px;right:6px;
-                         background:rgba(26,18,10,0.75);border:1px solid rgba(200,131,42,0.5);
-                         border-radius:6px;color:var(--amber-light);font-size:1rem;
-                         width:32px;height:32px;cursor:pointer;display:flex;
-                         align-items:center;justify-content:center;z-index:2;"
-                  id="rot-btn-front">↻</button>
-        {% else %}
-          <div class="placeholder" id="preview-front"><span>🏷️</span><span>Tap to add</span></div>
-        {% endif %}
-        <input type="file" name="photo_front" accept="image/*" capture="environment" onchange="previewPhoto(this,'front')">
-      </div>
-      <div class="photo-slot-label">Front Label</div>
-    </div>
-
-    <div>
-      <div class="photo-slot" id="slot-back">
-        {% if whisky and whisky.photo_back %}
-          <img src="{{ url_for('serve_photo', filename=whisky.photo_back) }}" alt="Back" id="preview-back">
-          <button type="button"
-                  onclick="rotateExistingPhoto({{ whisky.id }}, 'back')"
-                  title="Rotate 90° clockwise"
-                  style="position:absolute;bottom:6px;right:6px;
-                         background:rgba(26,18,10,0.75);border:1px solid rgba(200,131,42,0.5);
-                         border-radius:6px;color:var(--amber-light);font-size:1rem;
-                         width:32px;height:32px;cursor:pointer;display:flex;
-                         align-items:center;justify-content:center;z-index:2;"
-                  id="rot-btn-back">↻</button>
-        {% else %}
-          <div class="placeholder" id="preview-back"><span>📋</span><span>Tap to add</span></div>
-        {% endif %}
-        <input type="file" name="photo_back" accept="image/*" capture="environment" onchange="previewPhoto(this,'back')">
-      </div>
-      <div class="photo-slot-label">Back Label</div>
-    </div>
-
-    <div>
-      <div class="photo-slot" id="slot-cask">
-        {% if whisky and whisky.photo_cask %}
-          <img src="{{ url_for('serve_photo', filename=whisky.photo_cask) }}" alt="Cask" id="preview-cask">
-          <button type="button"
-                  onclick="rotateExistingPhoto({{ whisky.id }}, 'cask')"
-                  title="Rotate 90° clockwise"
-                  style="position:absolute;bottom:6px;right:6px;
-                         background:rgba(26,18,10,0.75);border:1px solid rgba(200,131,42,0.5);
-                         border-radius:6px;color:var(--amber-light);font-size:1rem;
-                         width:32px;height:32px;cursor:pointer;display:flex;
-                         align-items:center;justify-content:center;z-index:2;"
-                  id="rot-btn-cask">↻</button>
-        {% else %}
-          <div class="placeholder" id="preview-cask"><span>🍾</span><span>Tap to add</span></div>
-        {% endif %}
-        <input type="file" name="photo_cask" accept="image/*" capture="environment" onchange="previewPhoto(this,'cask')">
-      </div>
-      <div class="photo-slot-label">Cask / Bottle</div>
-    </div>
-
-    <div>
-      <div class="photo-slot" id="slot-barcode">
-        {% if whisky and whisky.photo_barcode %}
-          <img src="{{ url_for('serve_photo', filename=whisky.photo_barcode) }}" alt="Barcode" id="preview-barcode">
-          <button type="button"
-                  onclick="rotateExistingPhoto({{ whisky.id }}, 'barcode')"
-                  title="Rotate 90° clockwise"
-                  style="position:absolute;bottom:6px;right:6px;
-                         background:rgba(26,18,10,0.75);border:1px solid rgba(200,131,42,0.5);
-                         border-radius:6px;color:var(--amber-light);font-size:1rem;
-                         width:32px;height:32px;cursor:pointer;display:flex;
-                         align-items:center;justify-content:center;z-index:2;"
-                  id="rot-btn-barcode">↻</button>
-        {% else %}
-          <div class="placeholder" id="preview-barcode"><span>▌▌▌</span><span>Tap to add</span></div>
-        {% endif %}
-        <input type="file" name="photo_barcode" accept="image/*" capture="environment" onchange="previewPhoto(this,'barcode')">
-      </div>
-      <div class="photo-slot-label">Barcode Photo</div>
-    </div>
-
-  </div>
-</div>
-
-<!-- Submit -->
-<div style="display:flex;gap:0.75rem;flex-wrap:wrap;padding-bottom:2rem;">
-  <button type="submit" class="btn btn-primary">
-    {% if whisky %}💾 Save Changes{% else %}➕ Add Whisky{% endif %}
-  </button>
-  {% if whisky %}
-  <a href="{{ url_for('whisky_detail', wid=whisky.id) }}" class="btn btn-ghost">Cancel</a>
-  {% else %}
-  <a href="{{ url_for('collection') }}" class="btn btn-ghost">Cancel</a>
-  {% endif %}
-</div>
-
 </form>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-// ── Score controls ────────────────────────────────────────────────────────────
-const scoreHidden  = document.getElementById('score-value');
-const scoreDisplay = document.getElementById('score-display');
-const scoreSlider  = document.getElementById('score-slider');
-const scoreManual  = document.getElementById('score-manual');
-
-function setScore(v) {
-  const num = Math.min(10, Math.max(0, parseFloat(v)));
-  if (isNaN(num)) return;
-  scoreHidden.value        = num.toFixed(1);
-  scoreDisplay.textContent = num.toFixed(1);
-  scoreSlider.value        = num.toFixed(1);
-  scoreManual.value        = num.toFixed(1);
-}
-
-function onSlider(val) { setScore(val); }
-
-function onManual(val) {
-  const v = parseFloat(val);
-  if (!isNaN(v) && v >= 0 && v <= 10) {
-    scoreHidden.value        = v.toFixed(1);
-    scoreDisplay.textContent = v.toFixed(1);
-    scoreSlider.value        = v.toFixed(1);
-  }
-}
-
-function clearScore() {
-  scoreHidden.value        = '';
-  scoreDisplay.textContent = '—';
-  scoreManual.value        = '';
-}
-
-// Initialise from server value
-(function() {
-  const init = parseFloat(scoreHidden.value);
-  if (!isNaN(init)) {
-    scoreDisplay.textContent = init.toFixed(1);
-    scoreSlider.value        = init.toFixed(1);
-    scoreManual.value        = init.toFixed(1);
-  }
-})();
-
-
-// ── Flavour Radar ─────────────────────────────────────────────────────────────
-const _RADAR_AXES = ['woody','smoky','cereal','floral','fruity','medicinal','fiery'];
-const _RADAR_R    = 100;
-const _RADAR_N    = 7;
-
-function _radarPt(r, i) {
-  const angle = (i / _RADAR_N * 2 * Math.PI) - (Math.PI / 2);
-  return [parseFloat((r * Math.cos(angle)).toFixed(3)),
-          parseFloat((r * Math.sin(angle)).toFixed(3))];
-}
-
-function _radarVals() {
-  return _RADAR_AXES.map(a => parseInt(document.getElementById('radar-' + a).value) || 0);
-}
-
-function _radarUpdatePolygon() {
-  const vals = _radarVals();
-
-  // Update the main data polygon
-  const pts = vals.map((v, i) => {
-    const p = _radarPt(Math.max(v, 0) / 5 * _RADAR_R, i);
-    return p[0] + ',' + p[1];
-  }).join(' ');
-  const poly = document.getElementById('radar-polygon');
-  if (poly) poly.setAttribute('points', pts);
-
-  // Refresh dot markers
-  const svg = document.querySelector('#radar-container svg');
-  if (!svg) return;
-  svg.querySelectorAll('.radar-dot').forEach(el => el.remove());
-  vals.forEach((v, i) => {
-    if (v > 0) {
-      const p = _radarPt(v / 5 * _RADAR_R, i);
-      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circle.setAttribute('cx', p[0]);
-      circle.setAttribute('cy', p[1]);
-      circle.setAttribute('r', '4');
-      circle.setAttribute('fill', '#C8832A');
-      circle.setAttribute('stroke', '#1A120A');
-      circle.setAttribute('stroke-width', '1.5');
-      circle.classList.add('radar-dot');
-      svg.appendChild(circle);
-    }
-  });
-
-  // Refresh cell highlight fills
-  svg.querySelectorAll('polygon.radar-cell').forEach(el => {
-    const m = el.getAttribute('onclick').match(/radarSetVal\('(\w+)',(\d+)\)/);
-    if (!m) return;
-    const cur    = parseInt(document.getElementById('radar-' + m[1]).value) || 0;
-    const active = (cur === parseInt(m[2]));
-    const fill   = active ? 'rgba(200,131,42,0.35)' : 'rgba(0,0,0,0)';
-    el.setAttribute('fill', fill);
-    el.setAttribute('onmouseout', "this.style.fill='" + fill + "'");
-  });
-}
-
-function radarSetVal(axis, level) {
-  const el  = document.getElementById('radar-' + axis);
-  const cur = parseInt(el.value) || 0;
-  el.value  = (cur === level) ? 0 : level; // toggle off if same level tapped again
-  _radarUpdatePolygon();
-}
-
-function radarClearAll() {
-  _RADAR_AXES.forEach(a => { document.getElementById('radar-' + a).value = 0; });
-  _radarUpdatePolygon();
-}
-
-// Sync polygon with stored values on page load
-_radarUpdatePolygon();
-
-// ── Rotate saved photo (edit mode) ───────────────────────────────────────────
-function rotateExistingPhoto(wid, slot) {
-  if (!wid) return;
-  const btn = document.getElementById('rot-btn-' + slot);
-  const img = document.getElementById('preview-' + slot);
-  if (btn) { btn.textContent = '…'; btn.disabled = true; }
-  fetch(`/api/photo/${wid}/${slot}/rotate`, { method: 'POST' })
-    .then(r => r.json())
-    .then(d => {
-      if (d.ok && img && img.tagName === 'IMG') {
-        const base = img.src.split('?')[0];
-        img.src = base + '?' + Date.now();
-      } else if (!d.ok) {
-        alert('Rotate failed: ' + (d.error || 'unknown'));
-      }
-    })
-    .catch(() => alert('Network error — could not rotate.'))
-    .finally(() => {
-      if (btn) { btn.textContent = '↻'; btn.disabled = false; }
-    });
-}
-
-// ── Photo preview ─────────────────────────────────────────────────────────────
-function previewPhoto(input, slot) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const existing = document.getElementById('preview-' + slot);
-    if (!existing) return;
-    if (existing.tagName === 'IMG') {
-      existing.src = e.target.result;
-    } else {
-      const img = document.createElement('img');
-      img.src       = e.target.result;
-      img.alt       = '';
-      img.id        = 'preview-' + slot;
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-      existing.replaceWith(img);
-    }
-  };
-  reader.readAsDataURL(file);
-}
-</script>
 {% endblock %}

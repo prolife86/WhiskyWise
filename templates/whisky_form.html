@@ -153,13 +153,17 @@
   {% set radar_axes = ['woody','smoky','cereal','floral','fruity','medicinal','fiery'] %}
   {% for axis in radar_axes %}
   <input type="hidden" name="radar_{{ axis }}" id="radar-{{ axis }}"
-         value="{{ (whisky | attr('radar_' ~ axis)) if whisky else 0 }}">
+         value="{{ (whisky | attr('radar_' ~ axis) | default(0)) if whisky else 0 }}">
   {% endfor %}
 
   <!-- SVG rendered server-side; JS will update polygon on click -->
   <div id="radar-container">
     {{ render_radar_svg(whisky, interactive=True) | safe }}
   </div>
+  <p id="radar-hint" style="text-align:center;font-family:'DM Mono',monospace;
+     font-size:0.72rem;color:var(--ash);margin-top:0.5rem;">
+    Tap any segment to set intensity (1 = faint · 5 = dominant) — tap again to clear
+  </p>
 
   <!-- Clear button -->
   <div style="text-align:center;margin-top:0.75rem;">
@@ -366,7 +370,7 @@ function _radarUpdatePolygon() {
   });
 
   // Refresh cell highlight fills
-  svg.querySelectorAll('polygon[onclick]').forEach(el => {
+  svg.querySelectorAll('polygon.radar-cell').forEach(el => {
     const m = el.getAttribute('onclick').match(/radarSetVal\('(\w+)',(\d+)\)/);
     if (!m) return;
     const cur    = parseInt(document.getElementById('radar-' + m[1]).value) || 0;

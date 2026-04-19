@@ -5,6 +5,7 @@ import io
 from datetime import datetime
 from functools import wraps
 from urllib.parse import urlparse
+import math as _math
 
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, send_file, abort)
@@ -48,14 +49,10 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 
-@app.context_processor
-def inject_globals():
-    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg}
 
 
 
 # ── Radar chart helper ──────────────────────────────────────────────────────────
-import math as _math
 
 _RADAR_AXES   = ['woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery']
 _RADAR_LABELS = ['Woody', 'Smoky', 'Cereal', 'Floral', 'Fruity', 'Medicinal', 'Fiery']
@@ -137,7 +134,7 @@ def render_radar_svg(w, interactive=False):
                 hover_out = "this.style.fill='%s'" % fill
                 onclick   = "radarSetVal('%s',%d)" % (axis_name, level)
                 out.append(
-                    '  <polygon points="%s" fill="%s" stroke="none" '
+                    '  <polygon class="radar-cell" points="%s" fill="%s" stroke="none" '
                     'style="cursor:pointer;" onclick="%s" '
                     'onmouseover="%s" onmouseout="%s"/>'
                     % (cell_pts, fill, onclick, hover_in, hover_out)
@@ -162,6 +159,10 @@ def render_radar_svg(w, interactive=False):
     out.append('</svg>')
     return '\n'.join(out)
 
+
+@app.context_processor
+def inject_globals():
+    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg}
 
 # ── Models ────────────────────────────────────────────────────────────────────
 

@@ -20,6 +20,7 @@
   <div class="card">
     <div class="card-header"><h3>✏️ Rename User</h3></div>
     <form method="POST">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="rename">
       <div class="form-group" style="margin-bottom:1rem;">
         <label>New Username</label>
@@ -40,6 +41,7 @@
       Set a new password for this user. They should change it after logging in.
     </p>
     <form method="POST">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="reset_password">
       <div class="form-group" style="margin-bottom:1rem;">
         <label>New Password</label>
@@ -78,6 +80,7 @@
     <form method="POST" onsubmit="return confirmToggleAdmin(this)"
           data-username="{{ u.username | e }}"
           data-revoke="{{ 'true' if u.is_admin else 'false' }}">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="toggle_admin">
       <button type="submit" class="btn btn-full {% if u.is_admin %}btn-danger{% else %}btn-secondary{% endif %}">
         {% if u.is_admin %}🚫 Revoke Admin{% else %}👑 Grant Admin{% endif %}
@@ -99,6 +102,7 @@
           onsubmit="return confirmDelete(this)"
           data-username="{{ u.username | e }}"
           data-count="{{ u.whisky_count }}">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-danger btn-full">Delete Account &amp; All Data</button>
     </form>
     {% endif %}

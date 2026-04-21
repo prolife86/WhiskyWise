@@ -37,6 +37,7 @@
         onsubmit="return confirm('Delete ' + this.dataset.name + '?')"
         data-name="{{ w.name | e }}"
         style="display:inline;">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
   </form>
 </div>
@@ -116,6 +117,17 @@
 </div>
 {% endif %}
 
+<!-- Flavour Radar -->
+{% if w.radar_woody or w.radar_smoky or w.radar_cereal or w.radar_floral or w.radar_fruity or w.radar_medicinal or w.radar_fiery %}
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-header">
+    <h3>🕸 Flavour Radar</h3>
+    <a href="{{ url_for('edit_whisky', wid=w.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+  </div>
+  {{ render_radar_svg(w, interactive=False) | safe }}
+</div>
+{% endif %}
+
 <!-- Wishlist notes -->
 {% if w.wishlist and w.wishlist_notes %}
 <div class="card" style="margin-bottom:1rem;">
@@ -164,7 +176,7 @@ function rotatePhoto(wid, slot) {
   const img  = document.getElementById('pimg-' + slot);
   btn.textContent = '…';
   btn.disabled = true;
-  fetch(`/api/photo/${wid}/${slot}/rotate`, { method: 'POST' })
+  fetch(`/api/photo/${wid}/${slot}/rotate`, { method: 'POST', headers: {'X-CSRF-Token': _csrfToken()} })
     .then(r => r.json())
     .then(d => {
       if (d.ok) {

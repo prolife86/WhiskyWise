@@ -13,6 +13,7 @@
 <div class="card" style="margin-bottom:1.5rem;">
   <div class="card-header"><h3>➕ Create New User</h3></div>
   <form method="POST" action="{{ url_for('admin_create_user') }}">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <div class="form-grid form-grid-2">
       <div class="form-group">
         <label>Username</label>

@@ -28,6 +28,7 @@
     <div style="display:flex;gap:0.4rem;flex-shrink:0;">
       <a href="{{ url_for('edit_wishlist_item', wid=w.id) }}" class="btn btn-ghost btn-sm">Edit</a>
       <form method="POST" action="{{ url_for('delete_whisky', wid=w.id) }}" onsubmit="return confirm('Remove from wishlist?')">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger btn-sm">✕</button>
       </form>
     </div>

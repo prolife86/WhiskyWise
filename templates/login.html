@@ -67,6 +67,7 @@ body {
   {% endfor %}
   {% endwith %}
   <form method="POST">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
       <label>Username</label>
       <input type="text" name="username" required autocomplete="username" autofocus>

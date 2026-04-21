@@ -13,6 +13,7 @@
       Current username: <strong style="color:var(--amber-light);">{{ current_user.username }}</strong>
     </p>
     <form method="POST">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="change_username">
       <div class="form-group" style="margin-bottom:1rem;">
         <label>New Username</label>
@@ -29,7 +30,8 @@
   <!-- Change Password -->
   <div class="card">
     <div class="card-header"><h3>🔑 Change Password</h3></div>
-    <form method="POST">a
+    <form method="POST">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="change_password">
       <div class="form-grid" style="margin-bottom:1rem;">
         <div class="form-group">

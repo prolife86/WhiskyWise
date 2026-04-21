@@ -5,6 +5,7 @@ import io
 from datetime import datetime
 from functools import wraps
 from urllib.parse import urlparse
+import math as _math
 
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, send_file, abort)
@@ -14,13 +15,21 @@ from flask_login import (LoginManager, UserMixin, login_user, logout_user,
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
+Image.MAX_IMAGE_PIXELS = 40_000_000  # ~40 MP — blocks decompression bomb attacks
 
 app = Flask(__name__)
 
 APP_VERSION = '1.0.0'
 
 # ── Config ────────────────────────────────────────────────────────────────────
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
+_secret = os.environ.get('SECRET_KEY', '')
+if not _secret or _secret in ('dev-secret-change-me', 'change-me-in-production',
+                               'change-this-to-a-long-random-secret'):
+    import secrets as _secrets
+    _secret = _secrets.token_hex(32)
+    print("[WhiskyWise] WARNING: No SECRET_KEY set — using a random one. "
+          "Sessions will not persist across restarts. Set SECRET_KEY in docker-compose.yml!")
+app.config['SECRET_KEY'] = _secret
 
 # Always resolve to absolute path so SQLite opens the right file regardless of cwd
 db_path = os.path.abspath(os.environ.get('DATABASE_PATH', 'data/db/whiskywise.db'))
@@ -31,12 +40,18 @@ if _db_dir:
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# ── Security: cookie flags ────────────────────────────────────────────────────
+app.config['SESSION_COOKIE_HTTPONLY']  = True
+app.config['SESSION_COOKIE_SAMESITE']  = 'Lax'
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+
 upload_folder = os.path.abspath(os.environ.get('UPLOAD_FOLDER', 'data/uploads'))
 os.makedirs(upload_folder, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_folder
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}  # gif removed — unnecessary surface area
 FLAVOR_PROFILES = [
     'floral', 'fresh', 'fruity', 'malty', 'medicinal',
     'oily', 'peaty', 'smoky', 'spicy', 'sweet',
@@ -48,10 +63,138 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 
+
+
+
+# ── Radar chart helper ──────────────────────────────────────────────────────────
+
+_RADAR_AXES   = ['woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery']
+_RADAR_LABELS = ['Woody', 'Smoky', 'Cereal', 'Floral', 'Fruity', 'Medicinal', 'Fiery']
+_N = 7
+_R = 100
+
+
+def _pt(r, i):
+    angle = (i / _N * 2 * _math.pi) - (_math.pi / 2)
+    return (round(r * _math.cos(angle), 3), round(r * _math.sin(angle), 3))
+
+
+def render_radar_svg(w, interactive=False):
+    """Return a complete SVG string for the flavour radar.
+    interactive=True adds clickable cells for the form/edit view."""
+    vals = [getattr(w, 'radar_' + a, 0) or 0 for a in _RADAR_AXES] if w else [0] * _N
+    has_data = any(v > 0 for v in vals)
+    out = []
+
+    out.append('<svg viewBox="-145 -145 290 290" width="100%" '
+               'style="max-width:300px;display:block;margin:0 auto;">')
+
+    # Background rings
+    for ring in range(1, 6):
+        pts = ' '.join('%s,%s' % _pt(ring / 5 * _R, i) for i in range(_N))
+        fill = 'rgba(200,131,42,0.04)' if ring % 2 == 0 else 'none'
+        out.append('  <polygon points="%s" fill="%s" '
+                   'stroke="rgba(200,131,42,0.18)" stroke-width="0.8"/>' % (pts, fill))
+
+    # Ring level numbers along vertical axis
+    for ring in range(1, 6):
+        out.append('  <text x="3" y="%s" font-family="DM Mono,monospace" '
+                   'font-size="7" fill="rgba(200,131,42,0.5)">%d</text>'
+                   % (round(-ring / 5 * _R - 2, 1), ring))
+
+    # Axis spokes
+    for i in range(_N):
+        x2, y2 = _pt(_R, i)
+        out.append('  <line x1="0" y1="0" x2="%s" y2="%s" '
+                   'stroke="rgba(200,131,42,0.25)" stroke-width="1"/>' % (x2, y2))
+
+    # Data polygon
+    if has_data or interactive:
+        dpts = ' '.join('%s,%s' % _pt(max(vals[i], 0) / 5 * _R, i) for i in range(_N))
+        out.append('  <polygon id="radar-polygon" points="%s" '
+                   'fill="rgba(200,131,42,0.22)" stroke="#C8832A" '
+                   'stroke-width="2" stroke-linejoin="round"/>' % dpts)
+
+    # Dot markers
+    for i, v in enumerate(vals):
+        if v > 0:
+            dx, dy = _pt(v / 5 * _R, i)
+            out.append('  <circle cx="%s" cy="%s" r="4" fill="#C8832A" '
+                       'stroke="#1A120A" stroke-width="1.5"/>' % (dx, dy))
+
+    # Interactive click cells (one wedge-slice per axis per level)
+    if interactive:
+        half_gap = _math.pi / _N * 0.88
+        for i in range(_N):
+            ac = (i / _N * 2 * _math.pi) - (_math.pi / 2)
+            a1 = ac - half_gap
+            a2 = ac + half_gap
+            axis_name = _RADAR_AXES[i]
+            cur_val = vals[i]
+            for level in range(1, 6):
+                ir = (level - 1) / 5 * _R
+                or_ = level / 5 * _R
+                cell_pts = (
+                    '%s,%s %s,%s %s,%s %s,%s' % (
+                        round(ir  * _math.cos(a1), 2), round(ir  * _math.sin(a1), 2),
+                        round(or_ * _math.cos(a1), 2), round(or_ * _math.sin(a1), 2),
+                        round(or_ * _math.cos(a2), 2), round(or_ * _math.sin(a2), 2),
+                        round(ir  * _math.cos(a2), 2), round(ir  * _math.sin(a2), 2),
+                    )
+                )
+                active = (cur_val == level)
+                fill   = 'rgba(200,131,42,0.35)' if active else 'rgba(0,0,0,0)'
+                hover_in  = "this.style.fill='rgba(200,131,42,0.2)'"
+                hover_out = "this.style.fill='%s'" % fill
+                onclick   = "radarSetVal('%s',%d)" % (axis_name, level)
+                out.append(
+                    '  <polygon class="radar-cell" points="%s" fill="%s" stroke="none" '
+                    'style="cursor:pointer;" onclick="%s" '
+                    'onmouseover="%s" onmouseout="%s"/>'
+                    % (cell_pts, fill, onclick, hover_in, hover_out)
+                )
+
+    # Axis labels
+    for i, label in enumerate(_RADAR_LABELS):
+        lx, ly = _pt(122, i)
+        v = vals[i]
+        color = '#F5C670' if v > 0 else '#9C8E7C'
+        if lx > 10:    anchor = 'start'
+        elif lx < -10: anchor = 'end'
+        else:           anchor = 'middle'
+        baseline = 'auto' if ly > 5 else ('hanging' if ly < -5 else 'middle')
+        val_str = ' %d/5' % v if v > 0 else ''
+        out.append(
+            '  <text x="%s" y="%s" text-anchor="%s" dominant-baseline="%s" '
+            'font-family="DM Mono,monospace" font-size="10" fill="%s">%s%s</text>'
+            % (lx, ly, anchor, baseline, color, label, val_str)
+        )
+
+    out.append('</svg>')
+    return '\n'.join(out)
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options']        = 'DENY'
+    response.headers['Referrer-Policy']        = 'strict-origin-when-cross-origin'
+    # Permissive CSP — tightened from default; allows Google Fonts and unpkg for ZXing
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    return response
+
+
 @app.context_processor
 def inject_globals():
-    return {'app_version': APP_VERSION}
-
+    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg, 'csrf_token': _csrf_token}
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -100,6 +243,15 @@ class Whisky(db.Model):
     photo_cask    = db.Column(db.String(300))
     photo_barcode = db.Column(db.String(300))
 
+    # Flavour radar (0 = unset, 1–5 intensity)
+    radar_woody      = db.Column(db.Integer, default=0)
+    radar_smoky      = db.Column(db.Integer, default=0)
+    radar_cereal     = db.Column(db.Integer, default=0)
+    radar_floral     = db.Column(db.Integer, default=0)
+    radar_fruity     = db.Column(db.Integer, default=0)
+    radar_medicinal  = db.Column(db.Integer, default=0)
+    radar_fiery      = db.Column(db.Integer, default=0)
+
     wishlist       = db.Column(db.Boolean, default=False)
     wishlist_notes = db.Column(db.Text)
 
@@ -125,6 +277,30 @@ def admin_required(f):
             abort(403)
         return f(*args, **kwargs)
     return decorated
+
+
+# ── CSRF protection ──────────────────────────────────────────────────────────────
+import secrets as _secrets_mod
+from flask import session as _session
+
+def _csrf_token():
+    if '_csrf_token' not in _session:
+        _session['_csrf_token'] = _secrets_mod.token_hex(32)
+    return _session['_csrf_token']
+
+def _check_csrf():
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        token    = (request.form.get('_csrf_token') or
+                    request.headers.get('X-CSRF-Token', ''))
+        expected = _session.get('_csrf_token', '')
+        if not expected or not _secrets_mod.compare_digest(token, expected):
+            abort(403)
+
+@app.before_request
+def csrf_protect():
+    if not current_user.is_authenticated:
+        return
+    _check_csrf()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -191,6 +367,14 @@ def _fill_whisky(w, form):
     w.flavor_profile = form.get('flavor_profile', '').strip()
     w.score          = _float_or_none(form.get('score'))
     w.wishlist_notes = form.get('wishlist_notes', '').strip()
+    # Radar values — clamp to 0–5
+    for axis in ('woody','smoky','cereal','floral','fruity','medicinal','fiery'):
+        raw = form.get(f'radar_{axis}', '0')
+        try:
+            val = max(0, min(5, int(raw)))
+        except (ValueError, TypeError):
+            val = 0
+        setattr(w, f'radar_{axis}', val)
     w.updated_at     = datetime.utcnow()
 
 
@@ -245,6 +429,14 @@ def _init_db():
                 cur.execute('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0')
                 conn.commit()
                 print("[WhiskyWise] Migrated DB: added is_admin column.")
+            # Radar columns (added in v1.1.0)
+            radar_axes = ['woody','smoky','cereal','floral','fruity','medicinal','fiery']
+            whisky_cols = [row[1] for row in cur.execute('PRAGMA table_info("whisky")').fetchall()]
+            for axis in radar_axes:
+                col = f'radar_{axis}'
+                if col not in whisky_cols:
+                    cur.execute(f'ALTER TABLE whisky ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0')
+            conn.commit()
         finally:
             conn.close()
 
@@ -270,8 +462,13 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form.get('username', '').strip()).first()
-        if user and user.check_password(request.form.get('password', '')):
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        user = User.query.filter_by(username=username).first()
+        # Always run check_password_hash to prevent timing-based username enumeration
+        _DUMMY_HASH = 'pbkdf2:sha256:600000$dummy$' + 'a' * 64
+        password_ok = user.check_password(password) if user else check_password_hash(_DUMMY_HASH, password)
+        if user and password_ok:
             login_user(user, remember=True)
             # Validate next param to prevent open-redirect
             return redirect(_safe_next(request.args.get('next')) or url_for('index'))
@@ -623,7 +820,7 @@ def rotate_photo(wid, slot):
         img.save(path, **save_kwargs)
     except Exception as exc:
         app.logger.error("Photo rotate failed: %s", exc)
-        return jsonify({'ok': False, 'error': str(exc)}), 500
+        return jsonify({'ok': False, 'error': 'Could not rotate photo.'}), 500
     return jsonify({'ok': True})
 
 

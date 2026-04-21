@@ -15,13 +15,21 @@ from flask_login import (LoginManager, UserMixin, login_user, logout_user,
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
+Image.MAX_IMAGE_PIXELS = 40_000_000  # ~40 MP — blocks decompression bomb attacks
 
 app = Flask(__name__)
 
-APP_VERSION = '1.1.0'
+APP_VERSION = '1.0.0'
 
 # ── Config ────────────────────────────────────────────────────────────────────
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
+_secret = os.environ.get('SECRET_KEY', '')
+if not _secret or _secret in ('dev-secret-change-me', 'change-me-in-production',
+                               'change-this-to-a-long-random-secret'):
+    import secrets as _secrets
+    _secret = _secrets.token_hex(32)
+    print("[WhiskyWise] WARNING: No SECRET_KEY set — using a random one. "
+          "Sessions will not persist across restarts. Set SECRET_KEY in docker-compose.yml!")
+app.config['SECRET_KEY'] = _secret
 
 # Always resolve to absolute path so SQLite opens the right file regardless of cwd
 db_path = os.path.abspath(os.environ.get('DATABASE_PATH', 'data/db/whiskywise.db'))
@@ -32,12 +40,18 @@ if _db_dir:
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# ── Security: cookie flags ────────────────────────────────────────────────────
+app.config['SESSION_COOKIE_HTTPONLY']  = True
+app.config['SESSION_COOKIE_SAMESITE']  = 'Lax'
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+
 upload_folder = os.path.abspath(os.environ.get('UPLOAD_FOLDER', 'data/uploads'))
 os.makedirs(upload_folder, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_folder
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}  # gif removed — unnecessary surface area
 FLAVOR_PROFILES = [
     'floral', 'fresh', 'fruity', 'malty', 'medicinal',
     'oily', 'peaty', 'smoky', 'spicy', 'sweet',
@@ -160,9 +174,27 @@ def render_radar_svg(w, interactive=False):
     return '\n'.join(out)
 
 
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options']        = 'DENY'
+    response.headers['Referrer-Policy']        = 'strict-origin-when-cross-origin'
+    # Permissive CSP — tightened from default; allows Google Fonts and unpkg for ZXing
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    return response
+
+
 @app.context_processor
 def inject_globals():
-    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg}
+    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg, 'csrf_token': _csrf_token}
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -245,6 +277,30 @@ def admin_required(f):
             abort(403)
         return f(*args, **kwargs)
     return decorated
+
+
+# ── CSRF protection ──────────────────────────────────────────────────────────────
+import secrets as _secrets_mod
+from flask import session as _session
+
+def _csrf_token():
+    if '_csrf_token' not in _session:
+        _session['_csrf_token'] = _secrets_mod.token_hex(32)
+    return _session['_csrf_token']
+
+def _check_csrf():
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        token    = (request.form.get('_csrf_token') or
+                    request.headers.get('X-CSRF-Token', ''))
+        expected = _session.get('_csrf_token', '')
+        if not expected or not _secrets_mod.compare_digest(token, expected):
+            abort(403)
+
+@app.before_request
+def csrf_protect():
+    if not current_user.is_authenticated:
+        return
+    _check_csrf()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -406,8 +462,13 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form.get('username', '').strip()).first()
-        if user and user.check_password(request.form.get('password', '')):
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        user = User.query.filter_by(username=username).first()
+        # Always run check_password_hash to prevent timing-based username enumeration
+        _DUMMY_HASH = 'pbkdf2:sha256:600000$dummy$' + 'a' * 64
+        password_ok = user.check_password(password) if user else check_password_hash(_DUMMY_HASH, password)
+        if user and password_ok:
             login_user(user, remember=True)
             # Validate next param to prevent open-redirect
             return redirect(_safe_next(request.args.get('next')) or url_for('index'))
@@ -759,7 +820,7 @@ def rotate_photo(wid, slot):
         img.save(path, **save_kwargs)
     except Exception as exc:
         app.logger.error("Photo rotate failed: %s", exc)
-        return jsonify({'ok': False, 'error': str(exc)}), 500
+        return jsonify({'ok': False, 'error': 'Could not rotate photo.'}), 500
     return jsonify({'ok': True})
 
 

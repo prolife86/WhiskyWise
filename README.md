@@ -17,6 +17,7 @@
  * **User Authentication** — Login required, password changeable
  * **Barcode Scanning** — Camera-based scanning for logging and tracking
  * **User Selection** — Multiuser login option and username changes
+ * **Spider Web Chart for falvour profiles** — Woody, Smoky, Cereal, Floral, Fruity, Medicinal, and Fiery — each scored on a 1–5 intensity scale
 
 ## 🚀 Getting Started
 The most reliable way to run Whisky Wise is via Docker. This ensures all dependencies (database, environment, and server) are perfectly configured out of the box.

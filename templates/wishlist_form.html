@@ -6,6 +6,7 @@
   <h1 style="color:var(--grain);margin-top:0.3rem;">{% if item %}Edit Wishlist Item{% else %}Add to Wishlist{% endif %}</h1>
 </div>
 <form method="POST">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 <div class="card">
   <div class="form-grid form-grid-2">
     <div class="form-group" style="grid-column:1/-1;">

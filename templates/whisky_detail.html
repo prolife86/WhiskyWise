@@ -37,6 +37,7 @@
         onsubmit="return confirm('Delete ' + this.dataset.name + '?')"
         data-name="{{ w.name | e }}"
         style="display:inline;">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
   </form>
 </div>
@@ -175,7 +176,7 @@ function rotatePhoto(wid, slot) {
   const img  = document.getElementById('pimg-' + slot);
   btn.textContent = '…';
   btn.disabled = true;
-  fetch(`/api/photo/${wid}/${slot}/rotate`, { method: 'POST' })
+  fetch(`/api/photo/${wid}/${slot}/rotate`, { method: 'POST', headers: {'X-CSRF-Token': _csrfToken()} })
     .then(r => r.json())
     .then(d => {
       if (d.ok) {

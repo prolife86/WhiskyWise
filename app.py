@@ -86,8 +86,11 @@ def render_radar_svg(w, interactive=False):
     has_data = any(v > 0 for v in vals)
     out = []
 
-    out.append('<svg viewBox="-145 -145 290 290" width="100%" '
-               'style="max-width:300px;display:block;margin:0 auto;">')
+    # viewBox is wide enough to fit all labels without clipping.
+    # "Medicinal" at text-anchor=end reaches x≈-177; Cereal/Smoky reach x≈+158.
+    # Add 12px padding on all sides.
+    out.append('<svg viewBox="-200 -160 400 340" width="100%" '
+               'style="max-width:360px;display:block;margin:0 auto;">')
 
     # Background rings
     for ring in range(1, 6):
@@ -98,8 +101,8 @@ def render_radar_svg(w, interactive=False):
 
     # Ring level numbers along vertical axis
     for ring in range(1, 6):
-        out.append('  <text x="3" y="%s" font-family="DM Mono,monospace" '
-                   'font-size="7" fill="rgba(200,131,42,0.5)">%d</text>'
+        out.append('  <text x="4" y="%s" font-family="DM Mono,monospace" '
+                   'font-size="8" fill="rgba(200,131,42,0.5)">%d</text>'
                    % (round(-ring / 5 * _R - 2, 1), ring))
 
     # Axis spokes
@@ -154,21 +157,39 @@ def render_radar_svg(w, interactive=False):
                     % (cell_pts, fill, onclick, hover_in, hover_out)
                 )
 
-    # Axis labels
+    # Axis labels — placed at r=118, label on first line, score on second line.
+    # text-anchor and dominant-baseline are set per-axis so labels never clip.
     for i, label in enumerate(_RADAR_LABELS):
-        lx, ly = _pt(122, i)
+        lx, ly = _pt(118, i)
         v = vals[i]
         color = '#F5C670' if v > 0 else '#9C8E7C'
-        if lx > 10:    anchor = 'start'
-        elif lx < -10: anchor = 'end'
-        else:           anchor = 'middle'
-        baseline = 'auto' if ly > 5 else ('hanging' if ly < -5 else 'middle')
-        val_str = ' %d/5' % v if v > 0 else ''
+
+        # Horizontal alignment
+        if lx > 8:     anchor = 'start'
+        elif lx < -8:  anchor = 'end'
+        else:          anchor = 'middle'
+
+        # Vertical alignment: push label away from the chart edge
+        if ly < -8:    baseline = 'auto';    score_dy = -12
+        elif ly > 8:   baseline = 'hanging'; score_dy = 12
+        else:          baseline = 'middle';  score_dy = 0
+
+        # Label text
         out.append(
             '  <text x="%s" y="%s" text-anchor="%s" dominant-baseline="%s" '
-            'font-family="DM Mono,monospace" font-size="10" fill="%s">%s%s</text>'
-            % (lx, ly, anchor, baseline, color, label, val_str)
+            'font-family="DM Mono,monospace" font-size="11" '
+            'font-weight="%s" fill="%s">%s</text>'
+            % (lx, ly, anchor, baseline, 'bold' if v > 0 else 'normal', color, label)
         )
+
+        # Score on a separate line so it never overlaps the label
+        if v > 0:
+            score_y = ly + score_dy
+            out.append(
+                '  <text x="%s" y="%s" text-anchor="%s" dominant-baseline="%s" '
+                'font-family="DM Mono,monospace" font-size="10" fill="#C8832A">%d/5</text>'
+                % (lx, score_y, anchor, baseline, v)
+            )
 
     out.append('</svg>')
     return '\n'.join(out)

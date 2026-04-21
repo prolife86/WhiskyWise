@@ -12,6 +12,7 @@
 </div>
 
 <form method="POST" enctype="multipart/form-data" id="whisky-form">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
 <!-- Basic Info -->
 <div class="card" style="margin-bottom:1rem;">
@@ -402,7 +403,7 @@ function rotateExistingPhoto(wid, slot) {
   const btn = document.getElementById('rot-btn-' + slot);
   const img = document.getElementById('preview-' + slot);
   if (btn) { btn.textContent = '…'; btn.disabled = true; }
-  fetch(`/api/photo/${wid}/${slot}/rotate`, { method: 'POST' })
+  fetch(`/api/photo/${wid}/${slot}/rotate`, { method: 'POST', headers: {'X-CSRF-Token': _csrfToken()} })
     .then(r => r.json())
     .then(d => {
       if (d.ok && img && img.tagName === 'IMG') {

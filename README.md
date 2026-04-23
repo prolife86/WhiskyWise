@@ -1,6 +1,6 @@
 # 🥃 Whisky Wise - _Your Personal Spirits Guide_
 >
-**Whisky Wise** is a lightweight, containerized personal assistant for spirits enthusiasts. Track your whisky collection, log tasting notes, and analyze flavor profiles — all in a self-hosted web app.
+Track your whisky collection, log tasting notes, and analyze flavor profiles — all in a self-hosted web app.
 
 ## ✨ Features
 - 📝 Tasting journal (Nose, Palate, Finish)

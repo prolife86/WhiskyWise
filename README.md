@@ -5,7 +5,7 @@ Track your whisky collection, log tasting notes, and analyze flavor profiles —
 ## ✨ Features
 - 📝 Tasting journal (Nose, Palate, Finish)
 - ⭐ 10-point rating system
-- 🧠 Flavor profiles (13 presets + spider chart visualization)
+- 🧠 Flavor profiles (13 presets + radar chart visualization)
 - 🗂 Collection tracking (Stashed, Open, Finished)
 - 📸 Photo storage (labels, bottle, barcode)
 - 💰 Purchase tracking (price, store, retired)
@@ -15,6 +15,11 @@ Track your whisky collection, log tasting notes, and analyze flavor profiles —
 - 📷 Barcode scanning (camera-based)
 - 👥 Multi-user support
 - 📝 Wishlist tracking
+
+## ❓ Why Whisky Wise?
+- No cloud lock-in — your data stays local
+- Built for whisky (not generic note apps)
+- Fast, lightweight, and self-hosted
 
 ## 🚀 Getting Started
 The most reliable way to run Whisky Wise is via Docker. This ensures all dependencies (database, environment, and server) are perfectly configured out of the box.
@@ -37,7 +42,6 @@ http://localhost:5000
 ```
 
 ## 🖥️ Configuration (docker-compose.yml)
-
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SECRET_KEY` | `change-this-...` | Flask session secret — **must be changed** |
@@ -45,7 +49,6 @@ http://localhost:5000
 | `UPLOAD_FOLDER` | `/data/uploads` | Photo upload directory |
 
 ## 💿 Data Persistence
-
 All data is stored in a named Docker volume (`whiskywise_data`):
 - Database: `/data/db/whiskywise.db` (SQLite)
 - Photos: `/data/uploads/`
@@ -96,28 +99,26 @@ You can also use the information to enter this manually into Unraid and not rebo
 > If you delete the container without a volume mapping, you will lose your tasting history and collection data.
 
 ## 🔐 Security Notes
-
 - Change the default admin password immediately
 - Use a strong SECRET_KEY
 - For external access, run behind a reverse proxy (Nginx, Traefik, etc.)
 - HTTPS is recommended for camera features and security
+- Do not expose directly to the internet without a reverse proxy and HTTPS
   
 ### Default login
 - **Username:** `admin`
 - **Password:** `whiskywise`
 > ⚠️ Change this immediately via **⚙️ Settings → Change Password**
 
-For use of the adminpanel, navigate to http://[IP]:[Port]/admin
+For use of the admin panel, navigate to http://[IP]:[Port]/admin
 
 ## 🫆 Barcode Scanning
-
 Barcode scanning uses the browser's BarcodeDetector API (available in Chrome 83+ and Safari 17+). Works best on:
 - Android Chrome
 - iOS Safari 17+
 If the API is unavailable, you can type the barcode manually.
 
 ## 📱 Accessing on Mobile (LAN)
-
 To use WhiskyWise on your phone while connected to your home network:
 
 1. Find your server's local IP (e.g. `192.168.1.100`)
@@ -130,7 +131,7 @@ To use WhiskyWise on your phone while connected to your home network:
 - **Backend:** Python / Flask
 - **Database:** SQLite (via SQLAlchemy)
 - **Auth:** Flask-Login
-- **Frontend:** Pure HTML/CSS/JS (no frameworks, mobile-first)
+- **Frontend:** Vanilla HTML/CSS/JS (no frameworks, fast and lightweight)
 - **Container:** Docker + Gunicorn
 
 ## 🤝 Contributing

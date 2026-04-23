@@ -2,22 +2,19 @@
 >
 **Whisky Wise** is a lightweight, containerized personal assistant for spirits enthusiasts. Whether you're tracking a growing collection or cataloging the nuance of a rare Islay peat, Whisky Wise provides a clean, distraction-free interface to manage your journey through the world of whisky.
 
-## ✨ Key Features
- * **Tasting Journal:** Log detailed notes on Nose, Palate, and Finish.
- * **Scoring** — 10-point scale
- * **Flavor Profiles** — 13 preset profiles
- * **Collection Management:** Track "Stashed," "Open," and "Finished" bottles.
- * **Photos** — ie. Front label, back label, cask/bottle, barcode
- * **Purchase Info** — Price, store, retired status
- * **Data Portability:** Your data stays in your container; export to CSV anytime.
-  * **Wishlist** — Note-style wishlist with price and store
- * **Top 10 Chart** — Animated rating chart on the home page
- * **Search & Filter** — By name, distillery, barcode, flavor, score, price, status
- * **CSV Export** — Download your entire collection
- * **User Authentication** — Login required, password changeable
- * **Barcode Scanning** — Camera-based scanning for logging and tracking
- * **User Selection** — Multiuser login option and username changes
- * **Spider Web Chart for falvour profiles** — Woody, Smoky, Cereal, Floral, Fruity, Medicinal, and Fiery — each scored on a 1–5 intensity scale
+## ✨ Features
+- 📝 Tasting journal (Nose, Palate, Finish)
+- ⭐ 10-point rating system
+- 🧠 Flavor profiles (13 presets + spider chart visualization)
+- 🗂 Collection tracking (Stashed, Open, Finished)
+- 📸 Photo storage (labels, bottle, barcode)
+- 💰 Purchase tracking (price, store, retired)
+- 🔍 Search & filtering (name, distillery, barcode, flavor, score)
+- 📊 Top 10 animated chart
+- 📦 CSV export (full data ownership)
+- 📷 Barcode scanning (camera-based)
+- 👥 Multi-user support
+- 📝 Wishlist tracking
 
 ## 🚀 Getting Started
 The most reliable way to run Whisky Wise is via Docker. This ensures all dependencies (database, environment, and server) are perfectly configured out of the box.
@@ -86,7 +83,7 @@ services:
 ### UnRaid Installation
 Download the my-WhiskyWise.xml and adjust the lines:
 - #6 (Network)
-- #7 (IP Adress)
+- #7 (IP Address)
 - #31 (Secret Key)
 
 Upload the adjusted my-WhiskyWise.xml to your flashdrive via: Main, the browse icon in front of the Flash drive.
@@ -98,6 +95,13 @@ You can also use the information to enter this manually into Unraid and not rebo
 > **Critical:** Always map the data directory to a local volume.
 > If you delete the container without a volume mapping, you will lose your tasting history and collection data.
 
+## 🔐 Security Notes
+
+- Change the default admin password immediately
+- Use a strong SECRET_KEY
+- For external access, run behind a reverse proxy (Nginx, Traefik, etc.)
+- HTTPS is recommended for camera features and security
+  
 ### Default login
 - **Username:** `admin`
 - **Password:** `whiskywise`
@@ -137,9 +141,8 @@ Found a bug or want to suggest a feature like "Distillery Maps"?
  4. Push to the Branch (git push origin feature/AmazingFeature).
  5. Open a Pull Request.
 
-## 🤖 Built with AI
-Portions of this application, were developed with the assistance of **Claude Sonnet 4.6**.
-This allows for a more rapid development cycle and optimized container orchestration.
+## 🤖 Development Notes
+Parts of this project were developed with AI assistance to accelerate development. All code is reviewed and maintained manually.
 
 ## 📜 License
 Distributed under the MIT License. See LICENSE for more information.

@@ -5,6 +5,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.0] — 2026-04-24 🏠 The Home Assistant Update
+
+### Added
+- **Home Assistant add-on support** — WhiskyWise can now be installed directly
+  as a Home Assistant add-on via the `homeassistant/` subfolder. Includes
+  `config.yaml`, `build.yaml`, `run.sh`, and `DOCS.md` conforming to the
+  HA Supervisor add-on specification.
+- **Multi-arch Docker image** — CI now publishes `linux/amd64`, `linux/arm64`,
+  and `linux/arm/v7` images to GHCR on every push to `main`.
+- **GitHub Actions workflow** (`sync-ha-addon.yml`) — automatically syncs the
+  version from `app.py` into `homeassistant/config.yaml`, builds and pushes
+  the Docker image, and creates a GitHub Release whenever `app.py`,
+  `requirements.txt`, `templates/`, or `homeassistant/` changes.
+- `repository.yaml` — marks the repo as a valid Home Assistant add-on
+  repository for direct installation from the HA add-on store.
+
+### Changed
+- `APP_VERSION` bumped to `1.2.0`.
+
+### Notes
+- Upgrading from v1.1.0 requires no database migration — all data, photos,
+  and passwords are preserved.
+- Home Assistant users: map `/data` to a persistent volume; see
+  `homeassistant/DOCS.md` for full setup instructions.
+
+---
+
 ## [1.1.0] — 2026-04-21
 
 ### Added

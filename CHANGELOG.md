@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [1.2.1] — 2026-04-27 🔧 Home Assistant Add-on Fix
+## [1.2.1] — 2026-04-28 🔧 Home Assistant Add-on Fix
 
 ### Added
 - **Home Assistant add-on support** — WhiskyWise can now be installed directly
@@ -55,7 +55,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [1.2.0] — 2026-04-24 🏠 The Home Assistant Update
+## [1.2.0] — 2026-04-27 🏠 The Home Assistant Update
 
 ### Added
 - **Home Assistant add-on support** — WhiskyWise can now be installed directly

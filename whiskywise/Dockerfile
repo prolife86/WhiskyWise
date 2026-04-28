@@ -8,7 +8,8 @@ RUN apk add --no-cache \
     musl-dev \
     python3-dev \
     jpeg-dev \
-    zlib-dev
+    zlib-dev \
+    zbar
 
 WORKDIR /app
 

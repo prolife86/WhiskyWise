@@ -1,14 +1,11 @@
 name: "WhiskyWise"
 description: "Your personal spirits guide — tasting journal, collection management & wishlist."
-version: "1.2.0"
+version: "1.2.1"
 slug: "whiskywise"
 init: false
 arch:
   - aarch64
   - amd64
-  - armhf
-  - armv7
-  - i386
 startup: application
 boot: auto
 ports:
@@ -19,7 +16,4 @@ options:
   secret_key: "change-this-to-a-long-random-secret"
 schema:
   secret_key: str
-map:
-  - data:rw
-image: "ghcr.io/prolife86/whiskywise:{version}"
 url: "https://github.com/prolife86/WhiskyWise"

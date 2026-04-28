@@ -4,6 +4,19 @@ All notable changes to WhiskyWise are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
+ 
+## [1.3.2] — 2026-04-28 🐍 Fix Python / Pillow Compatibility
+ 
+### Changed
+- `Pillow` bumped from `10.2.0` to `11.2.1` in `requirements.txt`.
+  Pillow 10.x cannot build on Python 3.13 — support was added in Pillow 11.0.0.
+  This affects both the standalone Docker image and the Home Assistant add-on.
+- `whiskywise/Dockerfile` base image kept at `3.13-alpine3.21` (reverted from
+  the interim `3.12` workaround in v1.3.1).
+- Main `Dockerfile` base image bumped from `python:3.11-slim` to `python:3.13-slim`
+  to align with the HA add-on and benefit from Python 3.13 improvements.
+---
+
 
 ## [1.3.1] — 2026-04-28 🐳 Fix Home Assistant Base Image
 

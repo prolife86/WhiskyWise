@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.0] — 2026-04-28 ⬆️ Dependency & Actions Update
+
+### Changed
+- Bumped all GitHub Actions to Node.js 24 compatible versions ahead of the
+  June 2nd, 2026 forced migration deadline:
+  - `actions/checkout` `v4` → `v6`
+  - `docker/login-action` `v3` → `v4`
+  - `docker/metadata-action` `v5` → `v6`
+  - `docker/setup-buildx-action` `v3` → `v4`
+  - `docker/build-push-action` `v5` → `v7`
+  - `sigstore/cosign-installer` `v3.5.0` → `v4.1.0` (also required for Cosign v3+ support)
+- Removed pinned SHA hashes from action references in favour of version tags
+  for improved readability and maintainability.
+- Docker image versioned tag changed from `type=semver` to `type=raw` so the
+  version-specific tag (e.g. `:v1.3.0`) is now correctly applied on every push
+  to `main`, not only on git tag pushes. Previously only `:latest` was tagged.
+- Fixed incorrect Home Assistant navigation in the auto-generated release body
+  (`Settings → Add-ons → ⋮ → Repositories`, not "Add-on Store").
+- `APP_VERSION` bumped to `1.3.0`.
+
+---
+
 ## [1.2.1] — 2026-04-28 🔧 Home Assistant Add-on Fix
 
 ### Added

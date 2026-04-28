@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Wishlist — WhiskyWise{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.25rem;">
+  <h1 style="color:var(--amber-glow);">💫 Wishlist</h1>
+  <a href="{{ url_for('new_wishlist_item') }}" class="btn btn-primary">+ Add to Wishlist</a>
+</div>
+{% if items %}
+<div style="display:grid;gap:0.75rem;">
+{% for w in items %}
+<div class="wish-card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
+    <div style="flex:1;min-width:0;">
+      <div class="wish-card-title">{{ w.name }}</div>
+      <div class="wish-card-meta">
+        {% if w.distillery %}{{ w.distillery }}{% endif %}
+        {% if w.region %} · {{ w.region }}{% endif %}
+        {% if w.price %} · <strong style="color:var(--amber-light);">€{{ '%.2f'|format(w.price) }}</strong>{% endif %}
+        {% if w.store %} · {{ w.store }}{% endif %}
+      </div>
+      {% if w.wishlist_notes %}
+      <div class="wish-card-notes">"{{ w.wishlist_notes }}"</div>
+      {% endif %}
+      {% if w.barcode %}
+      <div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--smoke);margin-top:0.4rem;">📊 {{ w.barcode }}</div>
+      {% endif %}
+    </div>
+    <div style="display:flex;gap:0.4rem;flex-shrink:0;">
+      <a href="{{ url_for('edit_wishlist_item', wid=w.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+      <form method="POST" action="{{ url_for('delete_whisky', wid=w.id) }}" onsubmit="return confirm('Remove from wishlist?')">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger btn-sm">✕</button>
+      </form>
+    </div>
+  </div>
+  <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--smoke);margin-top:0.75rem;">
+    Added {{ w.created_at.strftime('%d %b %Y') }}
+  </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:3rem 1rem;">
+  <div style="font-size:3rem;margin-bottom:0.75rem;">💫</div>
+  <p>Your wishlist is empty.</p>
+  <a href="{{ url_for('new_wishlist_item') }}" class="btn btn-primary" style="margin-top:1rem;">Add your first wish</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,6 +1,5 @@
 # WhiskyWise Home Assistant Add-on
-# Base image supports aarch64 and amd64
-FROM ghcr.io/home-assistant/base-python:3.11
+FROM ghcr.io/home-assistant/base-python:3.13-alpine3.21
 
 # Install system dependencies
 RUN apk add --no-cache \

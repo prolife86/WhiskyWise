@@ -5,6 +5,56 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.1] — 2026-04-27 🔧 Home Assistant Add-on Fix
+
+### Added
+- **Home Assistant add-on support** — WhiskyWise can now be installed directly
+  as a Home Assistant add-on. Add the repository URL to HA and install like
+  any other add-on. No Docker commands or compose files required.
+- **`whiskywise/config.yaml`** — add-on manifest conforming to the HA Supervisor
+  specification. Supports `aarch64` and `amd64` architectures.
+- **`whiskywise/Dockerfile`** — add-on specific Dockerfile using
+  `ghcr.io/home-assistant/base-python:3.11` directly, compatible with
+  Supervisor 2026.04.0 and later (no deprecated `BUILD_FROM` ARG pattern).
+- **`whiskywise/run.sh`** — bashio entrypoint that reads `secret_key` from the
+  HA Supervisor configuration and starts WhiskyWise via Gunicorn.
+- **`whiskywise/DOCS.md`** — configuration guide displayed inside the HA add-on UI.
+- **`repository.yaml`** at the repo root — required by the HA Supervisor to
+  recognise the repository. Contains `name`, `url` and `maintainer` fields.
+- **Consolidated CI/CD pipeline** — `docker-image.yml`, `docker-publish.yml`
+  and the add-on workflow merged into a single `.github/workflows/docker.yml`.
+  Jobs run in strict order: sync version → build & push → create release.
+  On PRs, only the build check runs (no push, no signing, no release).
+
+### Changed
+- `APP_VERSION` bumped to `1.2.1`.
+- GitHub Actions: version is now automatically read from `app.py` and synced
+  into `whiskywise/config.yaml` on every push to `main`. App source files
+  (`app.py`, `requirements.txt`, `templates/`) are copied into `whiskywise/`
+  by CI so the HA build context is always up to date.
+- Docker image signing (cosign) preserved from the previous `docker-publish.yml`
+  pipeline.
+
+### Fixed
+- Removed `build.yaml` — deprecated since Supervisor 2026.04.0; base images
+  are now set directly in the Dockerfile via `FROM`.
+- Removed `ARG BUILD_FROM` / `FROM ${BUILD_FROM}` pattern from the add-on
+  Dockerfile — no longer supported by the HA builder.
+- Removed `map: data:rw` from `config.yaml` — `/data` is always mounted
+  writable by default; declaring it caused a validation warning.
+- Removed invalid `armhf` and `armv7` arch values from `config.yaml` —
+  the HA Supervisor only accepts `aarch64` and `amd64`.
+- Corrected `ports_description` key format to match the `ports` key exactly.
+- `repository.yaml` moved to repo root (was incorrectly placed inside the
+  add-on subfolder in the initial draft).
+
+### Notes
+- No database migration required — all data, photos and passwords are preserved.
+- Home Assistant users: data is persisted to `/data` automatically; back up
+  via the standard HA backup system.
+
+---
+
 ## [1.2.0] — 2026-04-24 🏠 The Home Assistant Update
 
 ### Added

@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.3.1] — 2026-04-28 🐳 Fix Home Assistant Base Image
+
+### Fixed
+- `whiskywise/Dockerfile` base image corrected from the non-existent
+  `ghcr.io/home-assistant/base-python:3.11` to the valid
+  `ghcr.io/home-assistant/base-python:3.13-alpine3.21`. The shorthand
+  `base-python:3.11` tag was never published by the HA team — the correct
+  format requires both a Python version and an Alpine version
+  (e.g. `3.13-alpine3.21`). This caused the add-on build to fail immediately
+  on every HA installation.
+
+### Notes
+- As of HA base image release 2026.03.1, all images are published as
+  multi-arch (amd64 + aarch64). No architecture prefix is needed.
+
+---
+
 ## [1.3.0] — 2026-04-28 ⬆️ Dependency & Actions Update
 
 ### Changed

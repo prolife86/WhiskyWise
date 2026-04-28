@@ -19,7 +19,7 @@ Image.MAX_IMAGE_PIXELS = 40_000_000  # ~40 MP — blocks decompression bomb atta
 
 app = Flask(__name__)
 
-APP_VERSION = '1.3.1'
+APP_VERSION = '1.3.2'
 
 # ── Config ────────────────────────────────────────────────────────────────────
 _secret = os.environ.get('SECRET_KEY', '')

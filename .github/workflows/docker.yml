@@ -3,14 +3,12 @@ name: Docker & Home Assistant Add-on
 # Replaces:
 #   - docker-image.yml   (basic build check)
 #   - docker-publish.yml (build, push, cosign sign)
-#   - sync-ha-addon.yml  (HA config sync, GitHub Release)
 #
 # Job order:
 #   sync-version → build-and-push → release
 #
-# On PRs: only build-and-push runs (no push, no sign, no release).
+# On PRs: build check only (no push, no sign, no release).
 # On push to main: full pipeline.
-# On semver tag (v*.*.*): full pipeline, tagged release.
 
 on:
   push:
@@ -20,7 +18,7 @@ on:
       - "app.py"
       - "requirements.txt"
       - "templates/**"
-      - "homeassistant/**"
+      - "whiskywise/**"
       - "Dockerfile"
   pull_request:
     branches: [ "main" ]
@@ -31,11 +29,10 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ── 1. Sync APP_VERSION → homeassistant/config.yaml (main branch only) ─────
+  # ── 1. Sync APP_VERSION → whiskywise/config.yaml ───────────────────────────
   sync-version:
     name: Sync HA add-on version
     runs-on: ubuntu-latest
-    # Skip on PRs — nothing to commit back
     if: github.event_name != 'pull_request'
     permissions:
       contents: write
@@ -56,19 +53,25 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: $VERSION"
 
-      - name: Update homeassistant/config.yaml
+      - name: Update whiskywise/config.yaml version
         run: |
-          sed -i "s/^version: .*/version: \"${{ steps.extract.outputs.version }}\"/" homeassistant/config.yaml
+          sed -i "s/^version: .*/version: \"${{ steps.extract.outputs.version }}\"/" whiskywise/config.yaml
 
-      - name: Commit if config.yaml changed
+      - name: Copy app source into whiskywise/ (HA build context)
+        run: |
+          cp app.py whiskywise/app.py
+          cp requirements.txt whiskywise/requirements.txt
+          cp -r templates whiskywise/templates
+
+      - name: Commit if whiskywise/ changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet homeassistant/config.yaml; then
-            echo "config.yaml already up to date"
+          git add whiskywise/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
           else
-            git add homeassistant/config.yaml
-            git commit -m "chore: bump HA add-on version to ${{ steps.extract.outputs.version }} [skip ci]"
+            git commit -m "chore: sync whiskywise add-on to v${{ steps.extract.outputs.version }} [skip ci]"
             git push
           fi
 
@@ -76,14 +79,12 @@ jobs:
   build-and-push:
     name: Build & push Docker image
     runs-on: ubuntu-latest
-    # On PRs we still want a build check, so no 'needs' dependency here.
-    # On main/tags we wait for sync-version first.
     needs: [ sync-version ]
     if: always() && (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped')
     permissions:
       contents: read
       packages: write
-      id-token: write   # Required for cosign OIDC signing
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -133,7 +134,7 @@ jobs:
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-  # ── 3. Create GitHub Release (main branch only, new tags only) ─────────────
+  # ── 3. Create GitHub Release ────────────────────────────────────────────────
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
@@ -152,7 +153,6 @@ jobs:
           VERSION="v${{ needs.sync-version.outputs.version }}"
           if git ls-remote --tags origin | grep -q "refs/tags/$VERSION$"; then
             echo "exists=true"  >> "$GITHUB_OUTPUT"
-            echo "Tag $VERSION already exists — skipping"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -173,7 +173,9 @@ jobs:
             ```
 
             ### Home Assistant Add-on
-            Install via the WhiskyWise add-on repository.
-            See [DOCS](https://github.com/prolife86/WhiskyWise/blob/main/homeassistant/DOCS.md) for full setup instructions.
+            Add this repository in HA: **Settings → Add-ons → Add-on Store → ⋮ → Repositories**
+            ```
+            https://github.com/prolife86/WhiskyWise
+            ```
           draft: false
           prerelease: false

@@ -552,10 +552,20 @@ def barcode_lookup():
 @app.route('/api/photo/<path:filename>')
 @login_required
 def serve_photo(filename):
-    """Serve a photo file. Ownership is implicit: filenames are prefixed with
-    the whisky ID (w{id}_slot_ts.ext). Any logged-in user of this self-hosted
-    instance can view photos — acceptable for a personal/family deployment."""
+    """Serve a photo file. Ownership is enforced by confirming the filename
+    exists on a Whisky record that belongs to the current user."""
     safe_name = os.path.basename(filename)
+    owned = Whisky.query.filter(
+        Whisky.user_id == current_user.id,
+        db.or_(
+            Whisky.photo_front   == safe_name,
+            Whisky.photo_back    == safe_name,
+            Whisky.photo_cask    == safe_name,
+            Whisky.photo_barcode == safe_name,
+        )
+    ).first()
+    if not owned:
+        abort(403)
     path = os.path.join(app.config['UPLOAD_FOLDER'], safe_name)
     if not os.path.isfile(path):
         abort(404)

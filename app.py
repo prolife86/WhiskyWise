@@ -5,38 +5,53 @@ import io
 from datetime import datetime
 from functools import wraps
 from urllib.parse import urlparse
+import math as _math
+
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, send_file, abort)
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (LoginManager, UserMixin, login_user, logout_user,
-                         login_required, current_user)
+                          login_required, current_user)
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
+Image.MAX_IMAGE_PIXELS = 40_000_000  # ~40 MP — blocks decompression bomb attacks
 
 app = Flask(__name__)
 
-# ── Version ───────────────────────────────────────────────────────────────────
-APP_VERSION = os.environ.get('APP_VERSION', 'dev')
+APP_VERSION = '1.3.3'
 
 # ── Config ────────────────────────────────────────────────────────────────────
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
+_secret = os.environ.get('SECRET_KEY', '')
+if not _secret or _secret in ('dev-secret-change-me', 'change-me-in-production',
+                               'change-this-to-a-long-random-secret'):
+    import secrets as _secrets
+    _secret = _secrets.token_hex(32)
+    print("[WhiskyWise] WARNING: No SECRET_KEY set — using a random one. "
+          "Sessions will not persist across restarts. Set SECRET_KEY in docker-compose.yml!")
+app.config['SECRET_KEY'] = _secret
 
 # Always resolve to absolute path so SQLite opens the right file regardless of cwd
 db_path = os.path.abspath(os.environ.get('DATABASE_PATH', 'data/db/whiskywise.db'))
 _db_dir = os.path.dirname(db_path)
 if _db_dir:
     os.makedirs(_db_dir, exist_ok=True)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# ── Security: cookie flags ────────────────────────────────────────────────────
+app.config['SESSION_COOKIE_HTTPONLY']  = True
+app.config['SESSION_COOKIE_SAMESITE']  = 'Lax'
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 
 upload_folder = os.path.abspath(os.environ.get('UPLOAD_FOLDER', 'data/uploads'))
 os.makedirs(upload_folder, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_folder
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # 64 MB
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}  # gif removed — unnecessary surface area
 FLAVOR_PROFILES = [
     'floral', 'fresh', 'fruity', 'malty', 'medicinal',
     'oily', 'peaty', 'smoky', 'spicy', 'sweet',
@@ -47,11 +62,163 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+
+
+
+
+# ── Radar chart helper ──────────────────────────────────────────────────────────
+
+_RADAR_AXES   = ['woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery']
+_RADAR_LABELS = ['Woody', 'Smoky', 'Cereal', 'Floral', 'Fruity', 'Medicinal', 'Fiery']
+_N = 7
+_R = 100
+
+
+def _pt(r, i):
+    angle = (i / _N * 2 * _math.pi) - (_math.pi / 2)
+    return (round(r * _math.cos(angle), 3), round(r * _math.sin(angle), 3))
+
+
+def render_radar_svg(w, interactive=False):
+    """Return a complete SVG string for the flavour radar.
+    interactive=True adds clickable cells for the form/edit view."""
+    vals = [getattr(w, 'radar_' + a, 0) or 0 for a in _RADAR_AXES] if w else [0] * _N
+    has_data = any(v > 0 for v in vals)
+    out = []
+
+    # viewBox is wide enough to fit all labels without clipping.
+    # "Medicinal" at text-anchor=end reaches x≈-177; Cereal/Smoky reach x≈+158.
+    # Add 12px padding on all sides.
+    out.append('<svg viewBox="-200 -160 400 340" width="100%" '
+               'style="max-width:360px;display:block;margin:0 auto;">')
+
+    # Background rings
+    for ring in range(1, 6):
+        pts = ' '.join('%s,%s' % _pt(ring / 5 * _R, i) for i in range(_N))
+        fill = 'rgba(200,131,42,0.04)' if ring % 2 == 0 else 'none'
+        out.append('  <polygon points="%s" fill="%s" '
+                   'stroke="rgba(200,131,42,0.18)" stroke-width="0.8"/>' % (pts, fill))
+
+    # Ring level numbers along vertical axis
+    for ring in range(1, 6):
+        out.append('  <text x="4" y="%s" font-family="DM Mono,monospace" '
+                   'font-size="8" fill="rgba(200,131,42,0.5)">%d</text>'
+                   % (round(-ring / 5 * _R - 2, 1), ring))
+
+    # Axis spokes
+    for i in range(_N):
+        x2, y2 = _pt(_R, i)
+        out.append('  <line x1="0" y1="0" x2="%s" y2="%s" '
+                   'stroke="rgba(200,131,42,0.25)" stroke-width="1"/>' % (x2, y2))
+
+    # Data polygon
+    if has_data or interactive:
+        dpts = ' '.join('%s,%s' % _pt(max(vals[i], 0) / 5 * _R, i) for i in range(_N))
+        out.append('  <polygon id="radar-polygon" points="%s" '
+                   'fill="rgba(200,131,42,0.22)" stroke="#C8832A" '
+                   'stroke-width="2" stroke-linejoin="round"/>' % dpts)
+
+    # Dot markers
+    for i, v in enumerate(vals):
+        if v > 0:
+            dx, dy = _pt(v / 5 * _R, i)
+            out.append('  <circle cx="%s" cy="%s" r="4" fill="#C8832A" '
+                       'stroke="#1A120A" stroke-width="1.5"/>' % (dx, dy))
+
+    # Interactive click cells (one wedge-slice per axis per level)
+    if interactive:
+        half_gap = _math.pi / _N * 0.88
+        for i in range(_N):
+            ac = (i / _N * 2 * _math.pi) - (_math.pi / 2)
+            a1 = ac - half_gap
+            a2 = ac + half_gap
+            axis_name = _RADAR_AXES[i]
+            cur_val = vals[i]
+            for level in range(1, 6):
+                ir = (level - 1) / 5 * _R
+                or_ = level / 5 * _R
+                cell_pts = (
+                    '%s,%s %s,%s %s,%s %s,%s' % (
+                        round(ir  * _math.cos(a1), 2), round(ir  * _math.sin(a1), 2),
+                        round(or_ * _math.cos(a1), 2), round(or_ * _math.sin(a1), 2),
+                        round(or_ * _math.cos(a2), 2), round(or_ * _math.sin(a2), 2),
+                        round(ir  * _math.cos(a2), 2), round(ir  * _math.sin(a2), 2),
+                    )
+                )
+                active = (cur_val == level)
+                fill   = 'rgba(200,131,42,0.35)' if active else 'rgba(0,0,0,0)'
+                hover_in  = "this.style.fill='rgba(200,131,42,0.2)'"
+                hover_out = "this.style.fill='%s'" % fill
+                onclick   = "radarSetVal('%s',%d)" % (axis_name, level)
+                out.append(
+                    '  <polygon class="radar-cell" points="%s" fill="%s" stroke="none" '
+                    'style="cursor:pointer;" onclick="%s" '
+                    'onmouseover="%s" onmouseout="%s"/>'
+                    % (cell_pts, fill, onclick, hover_in, hover_out)
+                )
+
+    # Axis labels — placed at r=118, label on first line, score on second line.
+    # text-anchor and dominant-baseline are set per-axis so labels never clip.
+    for i, label in enumerate(_RADAR_LABELS):
+        lx, ly = _pt(118, i)
+        v = vals[i]
+        color = '#F5C670' if v > 0 else '#9C8E7C'
+
+        # Horizontal alignment
+        if lx > 8:     anchor = 'start'
+        elif lx < -8:  anchor = 'end'
+        else:          anchor = 'middle'
+
+        # Vertical alignment: push label away from the chart edge
+        if ly < -8:    baseline = 'auto';    score_dy = -12
+        elif ly > 8:   baseline = 'hanging'; score_dy = 12
+        else:          baseline = 'middle';  score_dy = 0
+
+        # Label text
+        out.append(
+            '  <text x="%s" y="%s" text-anchor="%s" dominant-baseline="%s" '
+            'font-family="DM Mono,monospace" font-size="11" '
+            'font-weight="%s" fill="%s">%s</text>'
+            % (lx, ly, anchor, baseline, 'bold' if v > 0 else 'normal', color, label)
+        )
+
+        # Score on a separate line so it never overlaps the label
+        if v > 0:
+            score_y = ly + score_dy
+            out.append(
+                '  <text x="%s" y="%s" text-anchor="%s" dominant-baseline="%s" '
+                'font-family="DM Mono,monospace" font-size="10" fill="#C8832A">%d/5</text>'
+                % (lx, score_y, anchor, baseline, v)
+            )
+
+    out.append('</svg>')
+    return '\n'.join(out)
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options']        = 'DENY'
+    response.headers['Referrer-Policy']        = 'strict-origin-when-cross-origin'
+    # Permissive CSP — tightened from default; allows Google Fonts and unpkg for ZXing
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    return response
+
+
 @app.context_processor
 def inject_globals():
-    return {'app_version': APP_VERSION}
+    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg, 'csrf_token': _csrf_token}
 
 # ── Models ────────────────────────────────────────────────────────────────────
+
 class User(UserMixin, db.Model):
     id            = db.Column(db.Integer, primary_key=True)
     username      = db.Column(db.String(80), unique=True, nullable=False)
@@ -71,32 +238,46 @@ class User(UserMixin, db.Model):
 
 
 class Whisky(db.Model):
-    id             = db.Column(db.Integer, primary_key=True)
-    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    name           = db.Column(db.String(200), nullable=False)
-    distillery     = db.Column(db.String(200))
-    region         = db.Column(db.String(100))
-    age            = db.Column(db.String(20))
-    abv            = db.Column(db.Float)
-    barcode        = db.Column(db.String(100))
-    status         = db.Column(db.String(20), default='stashed')
-    retired        = db.Column(db.Boolean, default=False)
-    price          = db.Column(db.Float)
-    store          = db.Column(db.String(200))
-    notes          = db.Column(db.Text)
-    nose           = db.Column(db.Text)
-    palate         = db.Column(db.Text)
-    finish         = db.Column(db.Text)
+    id            = db.Column(db.Integer, primary_key=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name          = db.Column(db.String(200), nullable=False)
+    distillery    = db.Column(db.String(200))
+    region        = db.Column(db.String(100))
+    age           = db.Column(db.String(20))
+    abv           = db.Column(db.Float)
+    barcode       = db.Column(db.String(100))
+
+    status        = db.Column(db.String(20), default='stashed')
+    retired       = db.Column(db.Boolean, default=False)
+    price         = db.Column(db.Float)
+    store         = db.Column(db.String(200))
+
+    notes         = db.Column(db.Text)
+    nose          = db.Column(db.Text)
+    palate        = db.Column(db.Text)
+    finish        = db.Column(db.Text)
     flavor_profile = db.Column(db.String(50))
-    score          = db.Column(db.Float)   # NULL = unscored; 0.0 is a valid score
-    photo_front    = db.Column(db.String(300))
-    photo_back     = db.Column(db.String(300))
-    photo_cask     = db.Column(db.String(300))
-    photo_barcode  = db.Column(db.String(300))
+    score         = db.Column(db.Float)  # NULL = unscored; 0.0 is a valid score
+
+    photo_front   = db.Column(db.String(300))
+    photo_back    = db.Column(db.String(300))
+    photo_cask    = db.Column(db.String(300))
+    photo_barcode = db.Column(db.String(300))
+
+    # Flavour radar (0 = unset, 1–5 intensity)
+    radar_woody      = db.Column(db.Integer, default=0)
+    radar_smoky      = db.Column(db.Integer, default=0)
+    radar_cereal     = db.Column(db.Integer, default=0)
+    radar_floral     = db.Column(db.Integer, default=0)
+    radar_fruity     = db.Column(db.Integer, default=0)
+    radar_medicinal  = db.Column(db.Integer, default=0)
+    radar_fiery      = db.Column(db.Integer, default=0)
+
     wishlist       = db.Column(db.Boolean, default=False)
     wishlist_notes = db.Column(db.Text)
-    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='whiskies')
 
@@ -105,7 +286,9 @@ class Whisky(db.Model):
 def load_user(uid):
     return db.session.get(User, int(uid))
 
+
 # ── Decorators ────────────────────────────────────────────────────────────────
+
 def admin_required(f):
     """Must be stacked INSIDE @login_required so unauthenticated users get
     redirected to login rather than receiving a bare 403."""
@@ -116,7 +299,33 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+
+# ── CSRF protection ──────────────────────────────────────────────────────────────
+import secrets as _secrets_mod
+from flask import session as _session
+
+def _csrf_token():
+    if '_csrf_token' not in _session:
+        _session['_csrf_token'] = _secrets_mod.token_hex(32)
+    return _session['_csrf_token']
+
+def _check_csrf():
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        token    = (request.form.get('_csrf_token') or
+                    request.headers.get('X-CSRF-Token', ''))
+        expected = _session.get('_csrf_token', '')
+        if not expected or not _secrets_mod.compare_digest(token, expected):
+            abort(403)
+
+@app.before_request
+def csrf_protect():
+    if not current_user.is_authenticated:
+        return
+    _check_csrf()
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -179,6 +388,14 @@ def _fill_whisky(w, form):
     w.flavor_profile = form.get('flavor_profile', '').strip()
     w.score          = _float_or_none(form.get('score'))
     w.wishlist_notes = form.get('wishlist_notes', '').strip()
+    # Radar values — clamp to 0–5
+    for axis in ('woody','smoky','cereal','floral','fruity','medicinal','fiery'):
+        raw = form.get(f'radar_{axis}', '0')
+        try:
+            val = max(0, min(5, int(raw)))
+        except (ValueError, TypeError):
+            val = 0
+        setattr(w, f'radar_{axis}', val)
     w.updated_at     = datetime.utcnow()
 
 
@@ -224,6 +441,7 @@ def _safe_next(next_url):
 def _init_db():
     with app.app_context():
         db.create_all()
+
         conn = db.engine.raw_connection()
         try:
             cur = conn.cursor()
@@ -232,8 +450,17 @@ def _init_db():
                 cur.execute('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0')
                 conn.commit()
                 print("[WhiskyWise] Migrated DB: added is_admin column.")
+            # Radar columns (added in v1.1.0)
+            radar_axes = ['woody','smoky','cereal','floral','fruity','medicinal','fiery']
+            whisky_cols = [row[1] for row in cur.execute('PRAGMA table_info("whisky")').fetchall()]
+            for axis in radar_axes:
+                col = f'radar_{axis}'
+                if col not in whisky_cols:
+                    cur.execute(f'ALTER TABLE whisky ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0')
+            conn.commit()
         finally:
             conn.close()
+
         db.session.expire_all()
 
         first = User.query.order_by(User.id).first()
@@ -242,20 +469,27 @@ def _init_db():
             admin.set_password('whiskywise')
             db.session.add(admin)
             db.session.commit()
-            print("[WhiskyWise] Default admin created — username: admin password: whiskywise")
+            print("[WhiskyWise] Default admin created — username: admin  password: whiskywise")
         elif not first.is_admin:
             first.is_admin = True
             db.session.commit()
             print(f"[WhiskyWise] Promoted '{first.username}' to admin.")
 
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form.get('username', '').strip()).first()
-        if user and user.check_password(request.form.get('password', '')):
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        user = User.query.filter_by(username=username).first()
+        # Always run check_password_hash to prevent timing-based username enumeration
+        _DUMMY_HASH = 'pbkdf2:sha256:600000$dummy$' + 'a' * 64
+        password_ok = user.check_password(password) if user else check_password_hash(_DUMMY_HASH, password)
+        if user and password_ok:
             login_user(user, remember=True)
             # Validate next param to prevent open-redirect
             return redirect(_safe_next(request.args.get('next')) or url_for('index'))
@@ -275,6 +509,7 @@ def logout():
 def settings():
     if request.method == 'POST':
         action = request.form.get('action')
+
         if action == 'change_username':
             new_name = request.form.get('username', '').strip()
             err = _validate_username(new_name, exclude_id=current_user.id)
@@ -284,6 +519,7 @@ def settings():
                 current_user.username = new_name
                 db.session.commit()
                 flash('Username updated successfully.', 'success')
+
         elif action == 'change_password':
             if not current_user.check_password(request.form.get('current', '')):
                 flash('Current password is incorrect.', 'error')
@@ -295,9 +531,12 @@ def settings():
                 current_user.set_password(request.form['new'])
                 db.session.commit()
                 flash('Password changed successfully.', 'success')
+
     return render_template('settings.html')
 
+
 # ── Admin panel ───────────────────────────────────────────────────────────────
+
 @app.route('/admin')
 @login_required
 @admin_required
@@ -313,6 +552,7 @@ def admin_create_user():
     username = request.form.get('username', '').strip()
     password = request.form.get('password', '').strip()
     is_admin = request.form.get('is_admin') == 'on'
+
     err = _validate_username(username)
     if err:
         flash(err, 'error')
@@ -320,6 +560,7 @@ def admin_create_user():
     if len(password) < 6:
         flash('Password must be at least 6 characters.', 'error')
         return redirect(url_for('admin_panel'))
+
     u = User(username=username, is_admin=is_admin)
     u.set_password(password)
     db.session.add(u)
@@ -335,8 +576,10 @@ def admin_edit_user(uid):
     u = db.session.get(User, uid)
     if not u:
         abort(404)
+
     if request.method == 'POST':
         action = request.form.get('action')
+
         if action == 'rename':
             new_name = request.form.get('username', '').strip()
             err = _validate_username(new_name, exclude_id=uid)
@@ -349,6 +592,7 @@ def admin_edit_user(uid):
                 flash(f'Renamed "{old_name}" → "{new_name}".', 'success')
                 if u.id == current_user.id:
                     login_user(u, remember=True)
+
         elif action == 'reset_password':
             new_pw = request.form.get('password', '').strip()
             if len(new_pw) < 6:
@@ -357,6 +601,7 @@ def admin_edit_user(uid):
                 u.set_password(new_pw)
                 db.session.commit()
                 flash(f'Password reset for "{u.username}".', 'success')
+
         elif action == 'toggle_admin':
             if u.id == current_user.id:
                 flash('You cannot change your own admin status.', 'error')
@@ -365,7 +610,9 @@ def admin_edit_user(uid):
                 db.session.commit()
                 state = 'granted' if u.is_admin else 'revoked'
                 flash(f'Admin {state} for "{u.username}".', 'success')
+
         return redirect(url_for('admin_edit_user', uid=uid))
+
     return render_template('admin_edit_user.html', u=u)
 
 
@@ -387,7 +634,9 @@ def admin_delete_user(uid):
     flash(f'User "{username}" and all their data deleted.', 'info')
     return redirect(url_for('admin_panel'))
 
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
+
 @app.route('/')
 @login_required
 def index():
@@ -396,9 +645,9 @@ def index():
              .filter(Whisky.score.isnot(None))
              .order_by(Whisky.score.desc())
              .limit(10).all())
-    total         = Whisky.query.filter_by(user_id=current_user.id, wishlist=False).count()
-    open_count    = Whisky.query.filter_by(user_id=current_user.id, status='open', wishlist=False).count()
-    stashed_count = Whisky.query.filter_by(user_id=current_user.id, status='stashed', wishlist=False).count()
+    total          = Whisky.query.filter_by(user_id=current_user.id, wishlist=False).count()
+    open_count     = Whisky.query.filter_by(user_id=current_user.id, status='open',    wishlist=False).count()
+    stashed_count  = Whisky.query.filter_by(user_id=current_user.id, status='stashed', wishlist=False).count()
     wishlist_count = Whisky.query.filter_by(user_id=current_user.id, wishlist=True).count()
     return render_template('index.html',
                            top10=top10, total=total,
@@ -451,7 +700,9 @@ def wishlist():
              .order_by(Whisky.created_at.desc()).all())
     return render_template('wishlist.html', items=items)
 
+
 # ── Whisky CRUD ───────────────────────────────────────────────────────────────
+
 @app.route('/whisky/new', methods=['GET', 'POST'])
 @login_required
 def new_whisky():
@@ -535,7 +786,9 @@ def edit_wishlist_item(wid):
         return redirect(url_for('wishlist'))
     return render_template('wishlist_form.html', item=w)
 
+
 # ── API ───────────────────────────────────────────────────────────────────────
+
 @app.route('/api/barcode-lookup')
 @login_required
 def barcode_lookup():
@@ -588,10 +841,12 @@ def rotate_photo(wid, slot):
         img.save(path, **save_kwargs)
     except Exception as exc:
         app.logger.error("Photo rotate failed: %s", exc)
-        return jsonify({'ok': False, 'error': str(exc)}), 500
+        return jsonify({'ok': False, 'error': 'Could not rotate photo.'}), 500
     return jsonify({'ok': True})
 
+
 # ── Export ────────────────────────────────────────────────────────────────────
+
 @app.route('/export/csv')
 @login_required
 def export_csv():
@@ -619,16 +874,27 @@ def export_csv():
     return send_file(output, mimetype='text/csv',
                      download_name='whiskywise_export.csv', as_attachment=True)
 
+
 # ── Error handlers ────────────────────────────────────────────────────────────
+
 @app.errorhandler(403)
 def forbidden(e):
     return render_template('403.html'), 403
+
 
 @app.errorhandler(404)
 def not_found(e):
     return render_template('404.html'), 404
 
+
+@app.errorhandler(413)
+def too_large(e):
+    flash('Upload too large. Please use smaller photos (max 64 MB total).', 'error')
+    return redirect(request.referrer or url_for('new_whisky'))
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
+
 _init_db()
 
 if __name__ == '__main__':

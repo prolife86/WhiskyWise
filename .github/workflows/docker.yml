@@ -1,19 +1,15 @@
 name: Docker & Home Assistant Add-on
 
-# Replaces:
-#   - docker-image.yml   (basic build check)
-#   - docker-publish.yml (build, push, cosign sign)
-#
 # Job order:
-#   sync-version → build-and-push → release
+#   extract-version → build-and-push → release
 #
 # On PRs: build check only (no push, no sign, no release).
-# On push to main: full pipeline.
+# On push to main or tag: full pipeline.
 
 on:
   push:
     branches: [ "main" ]
-    tags:     [ "v*.*.*" ]
+    tags: [ "v*.*.*" ]
     paths:
       - "app.py"
       - "requirements.txt"
@@ -25,38 +21,48 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY:   ghcr.io
+  REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ── 1. Sync APP_VERSION → whiskywise/config.yaml ───────────────────────────
+  # ── 1. Determine the version from the git tag or default to 'dev' ──────────
+  extract-version:
+    name: Extract version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set.outputs.version }}
+
+    steps:
+      - name: Set version from tag or fallback
+        id: set
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="dev"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION"
+
+  # ── 2. Sync version into HA add-on config (non-PR only) ───────────────────
   sync-version:
     name: Sync HA add-on version
     runs-on: ubuntu-latest
+    needs: [ extract-version ]
     if: github.event_name != 'pull_request'
     permissions:
       contents: write
 
-    outputs:
-      version: ${{ steps.extract.outputs.version }}
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref || github.ref_name }}
 
-      - name: Extract APP_VERSION from app.py
-        id: extract
-        run: |
-          VERSION=$(grep -oP "(?<=APP_VERSION = ')[\d.]+" app.py)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Detected version: $VERSION"
-
       - name: Update whiskywise/config.yaml version
         run: |
-          sed -i "s/^version: .*/version: \"${{ steps.extract.outputs.version }}\"/" whiskywise/config.yaml
+          sed -i 's/^version: .*/version: "${{ needs.extract-version.outputs.version }}"/' whiskywise/config.yaml
 
       - name: Copy app source into whiskywise/ (HA build context)
         run: |
@@ -66,21 +72,21 @@ jobs:
 
       - name: Commit if whiskywise/ changed
         run: |
-          git config user.name  "github-actions[bot]"
+          git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add whiskywise/
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: sync whiskywise add-on to v${{ steps.extract.outputs.version }} [skip ci]"
+            git commit -m "chore: sync whiskywise add-on to v${{ needs.extract-version.outputs.version }} [skip ci]"
             git push origin HEAD:main
           fi
 
-  # ── 2. Build, push & cosign-sign the Docker image ──────────────────────────
+  # ── 3. Build, push & cosign-sign the Docker image ─────────────────────────
   build-and-push:
     name: Build & push Docker image
     runs-on: ubuntu-latest
-    needs: [ sync-version ]
+    needs: [ extract-version, sync-version ]
     if: always() && (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped')
     permissions:
       contents: read
@@ -89,18 +95,18 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Install cosign
         if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@v4.1.0
+        uses: sigstore/cosign-installer@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -108,50 +114,53 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=v${{ needs.sync-version.outputs.version }},enable=${{ github.event_name != 'pull_request' }}
+            type=raw,value=v${{ needs.extract-version.outputs.version }},enable=${{ github.event_name != 'pull_request' }}
 
       - name: Build and push Docker image
         id: build-and-push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags:   ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Inject the version so app.py can read it via os.environ['APP_VERSION']
+          build-args: |
+            APP_VERSION=${{ needs.extract-version.outputs.version }}
           cache-from: type=gha
-          cache-to:   type=gha,mode=max
+          cache-to: type=gha,mode=max
 
       - name: Sign the published Docker image
         if: github.event_name != 'pull_request'
         env:
-          TAGS:   ${{ steps.meta.outputs.tags }}
+          TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-  # ── 3. Create GitHub Release ────────────────────────────────────────────────
+  # ── 4. Create GitHub Release ───────────────────────────────────────────────
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [ sync-version, build-and-push ]
-    if: github.event_name != 'pull_request'
+    needs: [ extract-version, build-and-push ]
+    if: github.event_name != 'pull_request' && needs.extract-version.outputs.version != 'dev'
     permissions:
       contents: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Check if release tag already exists
         id: tag_check
         run: |
-          VERSION="v${{ needs.sync-version.outputs.version }}"
+          VERSION="v${{ needs.extract-version.outputs.version }}"
           if git ls-remote --tags origin | grep -q "refs/tags/$VERSION$"; then
-            echo "exists=true"  >> "$GITHUB_OUTPUT"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -160,15 +169,15 @@ jobs:
         if: steps.tag_check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v${{ needs.sync-version.outputs.version }}"
-          name:     "WhiskyWise v${{ needs.sync-version.outputs.version }}"
+          tag_name: "v${{ needs.extract-version.outputs.version }}"
+          name: "WhiskyWise v${{ needs.extract-version.outputs.version }}"
           body: |
-            ## WhiskyWise v${{ needs.sync-version.outputs.version }}
+            ## WhiskyWise v${{ needs.extract-version.outputs.version }}
 
             ### Docker image
             ```
             ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:v${{ needs.sync-version.outputs.version }}
+            ghcr.io/${{ github.repository }}:v${{ needs.extract-version.outputs.version }}
             ```
 
             ### Home Assistant Add-on

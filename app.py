@@ -19,7 +19,7 @@ Image.MAX_IMAGE_PIXELS = 40_000_000  # ~40 MP — blocks decompression bomb atta
 
 app = Flask(__name__)
 
-APP_VERSION = '1.3.2'
+APP_VERSION = '1.3.3'
 
 # ── Config ────────────────────────────────────────────────────────────────────
 _secret = os.environ.get('SECRET_KEY', '')
@@ -49,7 +49,7 @@ app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 upload_folder = os.path.abspath(os.environ.get('UPLOAD_FOLDER', 'data/uploads'))
 os.makedirs(upload_folder, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_folder
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # 64 MB
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}  # gif removed — unnecessary surface area
 FLAVOR_PROFILES = [
@@ -885,6 +885,12 @@ def forbidden(e):
 @app.errorhandler(404)
 def not_found(e):
     return render_template('404.html'), 404
+
+
+@app.errorhandler(413)
+def too_large(e):
+    flash('Upload too large. Please use smaller photos (max 64 MB total).', 'error')
+    return redirect(request.referrer or url_for('new_whisky'))
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────

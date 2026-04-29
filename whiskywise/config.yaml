@@ -1,6 +1,6 @@
 name: "WhiskyWise"
 description: "Your personal spirits guide — tasting journal, collection management & wishlist."
-version: "1.3.2"
+version: "1.3.3"
 slug: "whiskywise"
 init: false
 arch:

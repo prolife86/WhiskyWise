@@ -4,7 +4,41 @@ All notable changes to WhiskyWise are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
+
+## [1.3.3] — 2026-04-28 🔐🐍📦 Security, Compatibility & Dependency Update
  
+### Security
+- Removed `ENV SECRET_KEY=change-me-in-production` from `Dockerfile`.
+  Hardcoding secrets in `ENV` instructions bakes them into image layers,
+  making them readable via `docker inspect` or `docker history` by anyone
+  with access to the image. `SECRET_KEY` must now be supplied at runtime
+  via `docker-compose.yml` (already the recommended approach) or the
+  Home Assistant Supervisor configuration tab.
+### Fixed
+- `SQLAlchemy` bumped from `2.0.25` to `2.0.49`. SQLAlchemy 2.0.25 is
+  incompatible with Python 3.13 due to changes in Python's typing internals
+  (`__firstlineno__` and `__static_attributes__` attributes), causing the app
+  to crash on boot with an `AssertionError`.
+### Added
+- `MAX_CONTENT_LENGTH` set to 64 MB in `app.py` — previously unlimited, meaning
+  large uploads could silently exhaust memory. Flask now rejects requests over
+  64 MB at the WSGI layer before they reach the upload handler.
+- 413 error handler in `app.py` — when an upload exceeds the limit, the user
+  now sees a friendly flash message ("Upload too large. Please use smaller
+  photos (max 64 MB total).") and is redirected back to the originating page
+  rather than receiving a raw HTTP 413 response.
+### Changed
+- `Flask` bumped from `3.0.0` to `3.1.3` (latest stable).
+- `Werkzeug` bumped from `3.0.1` to `3.1.8` — required by Flask 3.1.x
+  (`Flask>=3.1` mandates `Werkzeug>=3.1`).
+- `gunicorn` bumped from `21.2.0` to `25.3.0` (latest stable). v25 introduces
+  per-app worker allocation and HTTP/2 beta support; fully compatible with the
+  existing single-worker, 4-thread configuration.
+- `Flask-SQLAlchemy==3.1.1`, `Flask-Login==0.6.3`, `Pillow==11.2.1` and
+  `SQLAlchemy==2.0.49` confirmed as latest versions — no change needed.
+
+---
+
 ## [1.3.2] — 2026-04-28 🐍 Fix Python / Pillow Compatibility
  
 ### Changed
@@ -15,8 +49,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the interim `3.12` workaround in v1.3.1).
 - Main `Dockerfile` base image bumped from `python:3.11-slim` to `python:3.13-slim`
   to align with the HA add-on and benefit from Python 3.13 improvements.
----
 
+---
 
 ## [1.3.1] — 2026-04-28 🐳 Fix Home Assistant Base Image
 

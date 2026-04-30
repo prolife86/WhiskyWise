@@ -4,7 +4,63 @@ All notable changes to WhiskyWise are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
-
+ 
+## [1.3.4] — 2026-04-30 🔒🧹 Security, Code Quality & Compatibility
+ 
+### Security
+- **Photo ownership enforced** — the `serve_photo` route now confirms that the
+  requested filename belongs to a `Whisky` record owned by the current user
+  before serving it. Previously any logged-in user could view another user's
+  photos by guessing the filename. Returns `403 Forbidden` on ownership
+  mismatch.
+- **CSRF protection wired up** — `Flask-WTF`'s `CSRFProtect` is now
+  initialised on the app. All 13 POST forms already carried a
+  `{{ csrf_token() }}` hidden field and the `<meta name="csrf-token">` tag
+  (used by AJAX calls) was already present in `base.html`; this change makes
+  the backend actually validate those tokens on every state-changing request.
+  A friendly flash message is shown if a token has expired rather than a raw
+  `400` response. The `/api/photo/.../rotate` AJAX endpoint is exempted via
+  `@csrf.exempt` (it sends the token as an `X-CSRF-Token` header instead).
+- **Login rate limiting** — the `/login` POST endpoint is now limited to
+  5 attempts per minute per IP using `Flask-Limiter`. Relevant for
+  installations exposed via a reverse proxy (Nginx + Tailscale).
+- **SQLite WAL mode enabled** — `PRAGMA journal_mode=WAL` is now set on every
+  new database connection via a `sqlalchemy.event` hook. Improves concurrent
+  read performance under the 4-thread Gunicorn configuration and prevents
+  reader/writer contention.
+### Fixed
+- **`change_password.html` missing CSRF token** — the standalone change
+  password template was the only form without a `{{ csrf_token() }}` hidden
+  field. Added.
+### Changed
+- **`APP_VERSION` driven from git tag** — `APP_VERSION` is no longer hardcoded
+  in `app.py`. It is now read from the `APP_VERSION` environment variable
+  (injected at Docker build time via `--build-arg APP_VERSION=...`), falling
+  back to `'dev'` for local builds. The CI workflow injects the version from
+  the git tag (`refs/tags/v1.3.4` → `1.3.4`) automatically on every release.
+  `app.py` and `Dockerfile` no longer need touching for a version bump.
+- **`datetime.utcnow()` replaced** — all five occurrences replaced with
+  `datetime.now(timezone.utc)` following Python 3.12+'s deprecation of
+  `datetime.utcnow()`. Model `default=` columns now use a `lambda` wrapper
+  as required by SQLAlchemy's callable default convention.
+- **Wishlist routes deduplicated** — `new_wishlist_item` and
+  `edit_wishlist_item` previously each manually set 7 fields that are a
+  subset of `_fill_whisky`. Both routes now call `_fill_whisky(w,
+  request.form)` directly, eliminating the duplication and the risk of the
+  two code paths drifting out of sync.
+### Added
+- **`Flask-WTF==1.2.2`** and **`Flask-Limiter==3.9.0`** added to
+  `requirements.txt`.
+### Notes
+- No database schema changes — upgrading from v1.3.3 requires no migration.
+  All data, photos and passwords are preserved.
+- The `__pycache__` directory previously tracked by git should be removed
+  with `git rm -r --cached __pycache__` — the `.gitignore` already excludes
+  it but git continues tracking previously committed files until explicitly
+  removed.
+  
+---
+ 
 ## [1.3.3] — 2026-04-28 🔐🐍📦 Security, Compatibility & Dependency Update
  
 ### Security

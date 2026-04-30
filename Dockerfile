@@ -16,6 +16,12 @@ ENV UPLOAD_FOLDER=/data/uploads
 # SECRET_KEY must be set at runtime via docker-compose.yml or the HA Supervisor.
 # Do NOT set it here — baking secrets into image layers exposes them via
 # 'docker inspect' and 'docker history'.
+
+# Version is injected at build time by CI via --build-arg.
+# Falls back to 'dev' for local builds without the arg.
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 # Run as non-root
 RUN adduser --disabled-password --gecos '' appuser && \
     chown -R appuser /app /data

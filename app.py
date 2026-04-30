@@ -2,7 +2,7 @@ import os
 import re
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from urllib.parse import urlparse
 from flask import (Flask, render_template, request, redirect, url_for,
@@ -13,6 +13,7 @@ from flask_login import (LoginManager, UserMixin, login_user, logout_user,
                          login_required, current_user)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
@@ -37,6 +38,7 @@ upload_folder = os.path.abspath(os.environ.get('UPLOAD_FOLDER', 'data/uploads'))
 os.makedirs(upload_folder, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_folder
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+app.config['WTF_CSRF_ENABLED'] = True
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -62,6 +64,8 @@ limiter = Limiter(
     storage_uri='memory://',    # In-process storage; fine for single-worker gunicorn
 )
 
+csrf = CSRFProtect(app)
+
 @app.context_processor
 def inject_globals():
     return {'app_version': APP_VERSION}
@@ -72,7 +76,7 @@ class User(UserMixin, db.Model):
     username      = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin      = db.Column(db.Boolean, default=False, nullable=False)
-    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at    = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def set_password(self, pw):
         self.password_hash = generate_password_hash(pw)
@@ -110,8 +114,8 @@ class Whisky(db.Model):
     photo_barcode  = db.Column(db.String(300))
     wishlist       = db.Column(db.Boolean, default=False)
     wishlist_notes = db.Column(db.Text)
-    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', backref='whiskies')
 
@@ -144,7 +148,7 @@ def save_photo(file, whisky_id, slot):
     ext = file.filename.rsplit('.', 1)[1].lower()
     save_ext = ext if ext in ('png', 'webp') else 'jpg'
     filename = secure_filename(
-        f"w{whisky_id}_{slot}_{int(datetime.utcnow().timestamp())}.{save_ext}"
+        f"w{whisky_id}_{slot}_{int(datetime.now(timezone.utc).timestamp())}.{save_ext}"
     )
     path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     try:
@@ -194,7 +198,7 @@ def _fill_whisky(w, form):
     w.flavor_profile = form.get('flavor_profile', '').strip()
     w.score          = _float_or_none(form.get('score'))
     w.wishlist_notes = form.get('wishlist_notes', '').strip()
-    w.updated_at     = datetime.utcnow()
+    w.updated_at     = datetime.now(timezone.utc)
 
 
 def _handle_photos(w, files):
@@ -519,13 +523,7 @@ def delete_whisky(wid):
 def new_wishlist_item():
     if request.method == 'POST':
         w = Whisky(user_id=current_user.id, wishlist=True)
-        w.name           = request.form.get('name', '').strip()
-        w.distillery     = request.form.get('distillery', '').strip()
-        w.region         = request.form.get('region', '').strip()
-        w.price          = _float_or_none(request.form.get('price'))
-        w.store          = request.form.get('store', '').strip()
-        w.barcode        = request.form.get('barcode', '').strip()
-        w.wishlist_notes = request.form.get('wishlist_notes', '').strip()
+        _fill_whisky(w, request.form)   # reuse shared field-filling logic
         db.session.add(w)
         db.session.commit()
         flash('Added to wishlist!', 'success')
@@ -538,14 +536,7 @@ def new_wishlist_item():
 def edit_wishlist_item(wid):
     w = Whisky.query.filter_by(id=wid, user_id=current_user.id, wishlist=True).first_or_404()
     if request.method == 'POST':
-        w.name           = request.form.get('name', '').strip()
-        w.distillery     = request.form.get('distillery', '').strip()
-        w.region         = request.form.get('region', '').strip()
-        w.price          = _float_or_none(request.form.get('price'))
-        w.store          = request.form.get('store', '').strip()
-        w.barcode        = request.form.get('barcode', '').strip()
-        w.wishlist_notes = request.form.get('wishlist_notes', '').strip()
-        w.updated_at     = datetime.utcnow()
+        _fill_whisky(w, request.form)   # reuse shared field-filling logic
         db.session.commit()
         flash('Wishlist item updated.', 'success')
         return redirect(url_for('wishlist'))
@@ -588,6 +579,7 @@ def serve_photo(filename):
     return send_file(path)
 
 
+@csrf.exempt
 @app.route('/api/photo/<int:wid>/<slot>/rotate', methods=['POST'])
 @login_required
 def rotate_photo(wid, slot):

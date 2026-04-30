@@ -69,7 +69,8 @@ jobs:
     name: Sync HA add-on version
     runs-on: ubuntu-latest
     needs: [ extract-version ]
-    if: github.event_name != 'pull_request'
+    # Only sync on real releases — not on plain pushes to main (which produce version 'dev')
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && needs.extract-version.outputs.version != 'dev')
     permissions:
       contents: write
 

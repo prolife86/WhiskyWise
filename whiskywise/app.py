@@ -50,10 +50,6 @@ FLAVOR_PROFILES = [
 
 db = SQLAlchemy(app)
 
-@event.listens_for(db.engine, 'connect')
-def set_wal_mode(dbapi_conn, connection_record):
-    dbapi_conn.execute('PRAGMA journal_mode=WAL')
-
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
@@ -241,8 +237,17 @@ def _safe_next(next_url):
 
 
 def _init_db():
+    engine = db.get_engine(app)
+
+    @event.listens_for(engine, "connect")
+    def set_wal_mode(dbapi_conn, connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.close()
+
     with app.app_context():
         db.create_all()
+
         conn = db.engine.raw_connection()
         try:
             cur = conn.cursor()
@@ -253,6 +258,7 @@ def _init_db():
                 print("[WhiskyWise] Migrated DB: added is_admin column.")
         finally:
             conn.close()
+
         db.session.expire_all()
 
         first = User.query.order_by(User.id).first()

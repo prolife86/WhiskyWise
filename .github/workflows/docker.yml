@@ -12,8 +12,14 @@ name: Docker & Home Assistant Add-on
 #   - Pull requests — build check only (no push, no sign, no release).
 
 on:
+  # Primary release trigger — publish a release via the GitHub UI.
+  # Creates the tag and fires the full pipeline. No terminal needed.
   release:
     types: [ published ]
+
+  # Code-change trigger — rebuilds :latest on every push to main.
+  # paths filter prevents spurious runs on docs/config-only changes.
+  # Does NOT create a GitHub Release (version falls back to 'dev').
   push:
     branches: [ "main" ]
     paths:
@@ -22,8 +28,10 @@ on:
       - "templates/**"
       - "whiskywise/**"
       - "Dockerfile"
+
   pull_request:
     branches: [ "main" ]
+
   workflow_dispatch:
 
 env:
@@ -70,7 +78,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.head_ref || github.ref_name }}
+          # Always checkout main so the version sync commit can be pushed back.
+          # On a release event github.ref_name is the tag, not main.
+          ref: main
 
       - name: Update whiskywise/config.yaml version
         run: |
@@ -130,8 +140,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=v${{ needs.extract-version.outputs.version }},enable=${{ github.event_name != 'pull_request' }}
+            type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
+            type=raw,value=v${{ needs.extract-version.outputs.version }},enable=${{ github.event_name != 'pull_request' && needs.extract-version.outputs.version != 'dev' }}
 
       - name: Build and push Docker image
         id: build-and-push

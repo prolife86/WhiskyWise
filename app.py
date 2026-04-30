@@ -8,8 +8,11 @@ from urllib.parse import urlparse
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, send_file, abort)
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
 from flask_login import (LoginManager, UserMixin, login_user, logout_user,
                          login_required, current_user)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
@@ -44,8 +47,20 @@ FLAVOR_PROFILES = [
 ]
 
 db = SQLAlchemy(app)
+
+@event.listens_for(db.engine, 'connect')
+def set_wal_mode(dbapi_conn, connection_record):
+    dbapi_conn.execute('PRAGMA journal_mode=WAL')
+
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],          # No global limit — only applied where decorated
+    storage_uri='memory://',    # In-process storage; fine for single-worker gunicorn
+)
 
 @app.context_processor
 def inject_globals():
@@ -249,7 +264,8 @@ def _init_db():
             print(f"[WhiskyWise] Promoted '{first.username}' to admin.")
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
-@app.route('/login', methods=['GET', 'POST'])
+@app.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))

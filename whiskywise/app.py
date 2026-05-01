@@ -61,9 +61,96 @@ limiter = Limiter(
 
 csrf = CSRFProtect(app)
 
+def render_radar_svg(whisky, interactive=False):
+    """Return an inline SVG radar chart for a whisky's flavor profile.
+
+    The chart plots the 13 WhiskyWise flavor axes.  When *whisky* is None
+    (e.g. the new-whisky form) an empty placeholder ring is rendered.
+    When *interactive* is True the SVG receives hover titles on each spoke
+    so the user can see the axis name in the browser tooltip.
+    """
+    labels = FLAVOR_PROFILES          # 13 spokes, alphabetical
+    n = len(labels)
+    cx, cy, r = 160, 160, 120         # centre and outer radius of chart
+    levels = 5                        # concentric grid rings
+
+    import math
+
+    def point(angle_deg, radius):
+        rad = math.radians(angle_deg - 90)   # start at top
+        return cx + radius * math.cos(rad), cy + radius * math.sin(rad)
+
+    # ── grid ──────────────────────────────────────────────────────────────
+    svg_parts = [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" '
+        'width="320" height="320" class="radar-svg">'
+    ]
+
+    # concentric rings
+    for lvl in range(1, levels + 1):
+        ring_r = r * lvl / levels
+        pts = ' '.join(f'{point(i * 360 / n, ring_r)[0]:.2f},'
+                       f'{point(i * 360 / n, ring_r)[1]:.2f}'
+                       for i in range(n))
+        svg_parts.append(
+            f'<polygon points="{pts}" fill="none" '
+            f'stroke="#c8a96e" stroke-width="0.5" stroke-opacity="0.4"/>'
+        )
+
+    # spokes
+    for i in range(n):
+        x, y = point(i * 360 / n, r)
+        svg_parts.append(
+            f'<line x1="{cx}" y1="{cy}" x2="{x:.2f}" y2="{y:.2f}" '
+            f'stroke="#c8a96e" stroke-width="0.5" stroke-opacity="0.4"/>'
+        )
+
+    # axis labels
+    for i, lbl in enumerate(labels):
+        x, y = point(i * 360 / n, r + 18)
+        svg_parts.append(
+            f'<text x="{x:.2f}" y="{y:.2f}" text-anchor="middle" '
+            f'dominant-baseline="middle" font-size="9" fill="#c8a96e" '
+            f'font-family="sans-serif">{lbl}</text>'
+        )
+
+    # ── data polygon ──────────────────────────────────────────────────────
+    if whisky is not None:
+        # Build a score map: primary flavor_profile gets full score (or 1.0),
+        # all others get 0.  A richer per-axis score schema can replace this
+        # mapping later without changing the template.
+        score_map = {lbl: 0.0 for lbl in labels}
+        if whisky.flavor_profile and whisky.flavor_profile in score_map:
+            value = (whisky.score / 100.0) if whisky.score is not None else 1.0
+            score_map[whisky.flavor_profile] = max(0.0, min(1.0, value))
+
+        data_pts = ' '.join(
+            f'{point(i * 360 / n, r * score_map[lbl])[0]:.2f},'
+            f'{point(i * 360 / n, r * score_map[lbl])[1]:.2f}'
+            for i, lbl in enumerate(labels)
+        )
+        svg_parts.append(
+            f'<polygon points="{data_pts}" '
+            f'fill="#c8a96e" fill-opacity="0.25" '
+            f'stroke="#c8a96e" stroke-width="1.5"/>'
+        )
+
+        # dots on each spoke
+        for i, lbl in enumerate(labels):
+            px, py = point(i * 360 / n, r * score_map[lbl])
+            title = f'<title>{lbl}</title>' if interactive else ''
+            svg_parts.append(
+                f'<circle cx="{px:.2f}" cy="{py:.2f}" r="3" '
+                f'fill="#c8a96e">{title}</circle>'
+            )
+
+    svg_parts.append('</svg>')
+    return '\n'.join(svg_parts)
+
+
 @app.context_processor
 def inject_globals():
-    return {'app_version': APP_VERSION}
+    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg}
 
 # ── Models ────────────────────────────────────────────────────────────────────
 class User(UserMixin, db.Model):

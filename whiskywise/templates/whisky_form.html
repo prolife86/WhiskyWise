@@ -327,13 +327,15 @@ function clearScore() {
 
 // ── Flavour Radar ─────────────────────────────────────────────────────────────
 const _RADAR_AXES = ['woody','smoky','cereal','floral','fruity','medicinal','fiery'];
-const _RADAR_R    = 100;
+const _RADAR_R    = 110;  // must match Python: r=110
+const _RADAR_CX   = 160;  // must match Python: cx=160
+const _RADAR_CY   = 160;  // must match Python: cy=160
 const _RADAR_N    = 7;
 
 function _radarPt(r, i) {
   const angle = (i / _RADAR_N * 2 * Math.PI) - (Math.PI / 2);
-  return [parseFloat((r * Math.cos(angle)).toFixed(3)),
-          parseFloat((r * Math.sin(angle)).toFixed(3))];
+  return [parseFloat((_RADAR_CX + r * Math.cos(angle)).toFixed(3)),
+          parseFloat((_RADAR_CY + r * Math.sin(angle)).toFixed(3))];
 }
 
 function _radarVals() {

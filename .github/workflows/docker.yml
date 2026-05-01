@@ -142,7 +142,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
-            type=raw,value=v${{ needs.extract-version.outputs.version }},enable=${{ github.event_name != 'pull_request' && needs.extract-version.outputs.version != 'dev' }}
+            type=raw,value=v${{ needs.extract-version.outputs.version }},enable=${{ github.event_name != 'pull_request' }}
 
       - name: Build and push Docker image
         id: build-and-push

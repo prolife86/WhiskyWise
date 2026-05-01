@@ -1,9 +1,8 @@
 FROM python:3.13-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y \
-    libzbar0 \
-    libzbar-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Fix 9: libzbar removed — barcode scanning is handled entirely client-side
+# via @zxing/browser and BarcodeDetector API. The native libs added ~6 MB of
+# image weight with no server-side consumer in requirements.txt.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .

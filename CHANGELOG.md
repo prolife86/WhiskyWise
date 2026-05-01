@@ -5,6 +5,50 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
  
+## [1.4.2] - 2026-05-01
+
+### Security
+- **Security response headers** — `@after_request` handler now sets
+  `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, and a
+  `Content-Security-Policy` on every response. These were listed in the
+  v1.1.0 changelog but were never wired into `app.py`.
+- **Cookie hardening** — `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`,
+  `REMEMBER_COOKIE_HTTPONLY`, and `REMEMBER_COOKIE_SAMESITE` are now explicitly
+  set in app config. Previously relied on Flask defaults.
+- **Constant-time login** — the `/login` POST handler now always calls
+  `check_password_hash()` regardless of whether the username exists, using a
+  pre-computed `_DUMMY_HASH`. Previously the `and` short-circuit let unknown
+  usernames return measurably faster, enabling timing-based username enumeration.
+- **`SECRET_KEY` guard** — if `SECRET_KEY` is absent or a known placeholder,
+  an ephemeral cryptographically random key is generated at startup with a
+  prominent log warning. The app no longer silently uses a predictable key.
+- **`gif` removed from `ALLOWED_EXTENSIONS`** — removed in v1.1.0 per the
+  changelog, but re-added in a later commit. Removed again.
+- **Pillow decompression bomb guard** — `Image.MAX_IMAGE_PIXELS` capped at
+  40 MP. Listed in v1.1.0 changelog; not set in code until now.
+- **`CSRFError` handler** — expired/missing CSRF tokens now produce a friendly
+  flash message and redirect instead of a raw HTTP 400.
+- **`rotate_photo` error sanitisation** — the endpoint no longer returns
+  `str(exc)` to the client. Full detail is logged server-side only.
+
+### Fixed
+- **`whiskywise/templates/change_password.html` missing CSRF token** — the
+  HA add-on copy was missing the `_csrf_token` hidden input. Fixed at source.
+
+### Changed
+- **`libzbar` removed from `Dockerfile`** — never used server-side; barcode
+  scanning is entirely client-side. Reduces image size by ~6 MB.
+
+### Removed
+- **`__pycache__`** removed from repository tree.
+- **`whiskywise/templates/templates/`** accidental nested duplicate removed.
+
+### Notes
+- No database schema changes. All data, photos, and passwords are preserved.
+
+---
+ 
 ## [1.4.1] - 2026-04-30
  
 ### Fixed

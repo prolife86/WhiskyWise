@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, send_file, abort)
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import event
 from flask_login import (LoginManager, UserMixin, login_user, logout_user,
                          login_required, current_user)
 from flask_limiter import Limiter
@@ -49,10 +48,6 @@ FLAVOR_PROFILES = [
 ]
 
 db = SQLAlchemy(app)
-
-@event.listens_for(db.engine, 'connect')
-def set_wal_mode(dbapi_conn, connection_record):
-    dbapi_conn.execute('PRAGMA journal_mode=WAL')
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -243,6 +238,10 @@ def _safe_next(next_url):
 def _init_db():
     with app.app_context():
         db.create_all()
+        # Enable WAL mode here (Flask-SQLAlchemy 3.x no longer supports
+        # accessing db.engine at module scope outside an app context)
+        with db.engine.connect() as _wal_conn:
+            _wal_conn.execute(db.text('PRAGMA journal_mode=WAL'))
         conn = db.engine.raw_connection()
         try:
             cur = conn.cursor()

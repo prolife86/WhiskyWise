@@ -5,6 +5,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
  
+## [1.4.3] - 2026-05-01
+
+### Fixed
+- **Flavour Radar not clickable** — the interactive radar chart on the Add/Edit
+  Whisky form could not be clicked. `render_radar_svg()` was only ever emitting
+  a static SVG; the 35 clickable wedge-cell polygons (`class="radar-cell"`) that
+  the form's JavaScript expects were never generated. All ring segments are now
+  rendered with the correct `onclick="radarSetVal(...)"` handler and hover
+  highlight so intensity can be set by clicking any cell.
+- **Existing radar selection not shown on Edit page** — when editing a saved
+  whisky, the previously chosen intensity levels appeared blank. The JS
+  `_radarUpdatePolygon()` restores highlights by querying `polygon.radar-cell`
+  elements on page load; because those elements were missing (see above) no
+  cells were ever highlighted and the data polygon collapsed to zero. Now that
+  the cells are present, stored values are correctly reflected when the edit
+  form loads.
+- **Radar axis mismatch** — `render_radar_svg()` was drawing 13 spokes using
+  the generic `FLAVOR_PROFILES` list (`floral`, `peaty`, `sweet`, …) while the
+  form's hidden inputs and JavaScript both use the 7 dedicated radar axes
+  (`woody`, `smoky`, `cereal`, `floral`, `fruity`, `medicinal`, `fiery`). The
+  function now always uses the correct 7-axis set, matching the database columns
+  and the JS `_RADAR_AXES` constant exactly.
+
+### Notes
+- Only `app.py` was changed (`render_radar_svg` function). No template, JS,
+  or database changes. All data, photos and passwords are preserved.
+
+---
+ 
 ## [1.4.2] - 2026-05-01
 
 ### Security

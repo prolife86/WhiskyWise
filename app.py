@@ -91,84 +91,141 @@ _DUMMY_HASH = generate_password_hash('__dummy__')
 def render_radar_svg(whisky, interactive=False):
     """Return an inline SVG radar chart for a whisky's flavor profile.
 
-    The chart plots the 13 WhiskyWise flavor axes.  When *whisky* is None
-    (e.g. the new-whisky form) an empty placeholder ring is rendered.
-    When *interactive* is True the SVG receives hover titles on each spoke
-    so the user can see the axis name in the browser tooltip.
+    The chart plots the 7 WhiskyWise flavor axes used by the form.
+    When *whisky* is None (e.g. the new-whisky form) an empty placeholder
+    ring is rendered.
+    When *interactive* is True the SVG receives clickable pie-segment cells
+    (class="radar-cell") so radarSetVal() in the form JS can handle them,
+    and the data polygon uses the per-axis radar_* fields on the whisky.
     """
-    labels = FLAVOR_PROFILES          # 13 spokes, alphabetical
+    # These 7 axes must match _RADAR_AXES in whisky_form.html JS exactly.
+    labels = ['woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery']
     n = len(labels)
-    cx, cy, r = 160, 160, 120         # centre and outer radius of chart
-    levels = 5                        # concentric grid rings
+    cx, cy, r = 160, 160, 110        # centre and outer radius of chart
+    levels = 5                        # concentric grid rings (1–5)
 
     import math
 
-    def point(angle_deg, radius):
-        rad = math.radians(angle_deg - 90)   # start at top
-        return cx + radius * math.cos(rad), cy + radius * math.sin(rad)
+    def point(idx, radius):
+        """Return (x, y) for spoke *idx* at *radius* from centre."""
+        angle = (idx / n * 2 * math.pi) - (math.pi / 2)
+        return cx + radius * math.cos(angle), cy + radius * math.sin(angle)
 
-    # ── grid ──────────────────────────────────────────────────────────────
     svg_parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" '
         'width="320" height="320" class="radar-svg">'
     ]
 
-    # concentric rings
+    # ── interactive cell polygons (render BEFORE grid so grid sits on top) ──
+    if interactive:
+        half_step = math.pi / n   # half the angular gap between spokes
+        for i, axis in enumerate(labels):
+            for lvl in range(1, levels + 1):
+                r_inner = r * (lvl - 1) / levels
+                r_outer = r * lvl / levels
+                # Four corners of this cell: inner-left, inner-right,
+                # outer-right, outer-left
+                angle_left  = (i / n * 2 * math.pi) - (math.pi / 2) - half_step
+                angle_right = (i / n * 2 * math.pi) - (math.pi / 2) + half_step
+                pts_list = [
+                    (cx + r_inner * math.cos(angle_left),  cy + r_inner * math.sin(angle_left)),
+                    (cx + r_inner * math.cos(angle_right), cy + r_inner * math.sin(angle_right)),
+                    (cx + r_outer * math.cos(angle_right), cy + r_outer * math.sin(angle_right)),
+                    (cx + r_outer * math.cos(angle_left),  cy + r_outer * math.sin(angle_left)),
+                ]
+                pts_str = ' '.join(f'{x:.2f},{y:.2f}' for x, y in pts_list)
+                svg_parts.append(
+                    f'<polygon class="radar-cell" points="{pts_str}" '
+                    f'fill="rgba(0,0,0,0)" stroke="none" '
+                    f'style="cursor:pointer;" '
+                    f'onmouseover="this.style.fill=\'rgba(200,131,42,0.18)\'" '
+                    f'onmouseout="this.style.fill=\'rgba(0,0,0,0)\'" '
+                    f'onclick="radarSetVal(\'{axis}\',{lvl})"/>'
+                )
+
+    # ── concentric grid rings ─────────────────────────────────────────────
     for lvl in range(1, levels + 1):
         ring_r = r * lvl / levels
-        pts = ' '.join(f'{point(i * 360 / n, ring_r)[0]:.2f},'
-                       f'{point(i * 360 / n, ring_r)[1]:.2f}'
+        pts = ' '.join(f'{point(i, ring_r)[0]:.2f},{point(i, ring_r)[1]:.2f}'
                        for i in range(n))
         svg_parts.append(
             f'<polygon points="{pts}" fill="none" '
-            f'stroke="#c8a96e" stroke-width="0.5" stroke-opacity="0.4"/>'
+            f'stroke="#c8a96e" stroke-width="0.5" stroke-opacity="0.4" pointer-events="none"/>'
         )
 
-    # spokes
+    # ── spokes ────────────────────────────────────────────────────────────
     for i in range(n):
-        x, y = point(i * 360 / n, r)
+        x, y = point(i, r)
         svg_parts.append(
             f'<line x1="{cx}" y1="{cy}" x2="{x:.2f}" y2="{y:.2f}" '
-            f'stroke="#c8a96e" stroke-width="0.5" stroke-opacity="0.4"/>'
+            f'stroke="#c8a96e" stroke-width="0.5" stroke-opacity="0.4" pointer-events="none"/>'
         )
 
-    # axis labels
+    # ── axis labels ───────────────────────────────────────────────────────
     for i, lbl in enumerate(labels):
-        x, y = point(i * 360 / n, r + 18)
+        x, y = point(i, r + 18)
         svg_parts.append(
             f'<text x="{x:.2f}" y="{y:.2f}" text-anchor="middle" '
             f'dominant-baseline="middle" font-size="9" fill="#c8a96e" '
-            f'font-family="sans-serif">{lbl}</text>'
+            f'font-family="sans-serif" pointer-events="none">{lbl}</text>'
         )
 
     # ── data polygon ──────────────────────────────────────────────────────
     if whisky is not None:
-        # Build a score map: primary flavor_profile gets full score (or 1.0),
-        # all others get 0.  A richer per-axis score schema can replace this
-        # mapping later without changing the template.
-        score_map = {lbl: 0.0 for lbl in labels}
-        if whisky.flavor_profile and whisky.flavor_profile in score_map:
-            value = (whisky.score / 100.0) if whisky.score is not None else 1.0
-            score_map[whisky.flavor_profile] = max(0.0, min(1.0, value))
+        if interactive:
+            # In the form, use the dedicated per-axis radar_* fields (0–5 scale)
+            def get_axis(axis):
+                val = getattr(whisky, f'radar_{axis}', None)
+                return int(val) if val is not None else 0
 
-        data_pts = ' '.join(
-            f'{point(i * 360 / n, r * score_map[lbl])[0]:.2f},'
-            f'{point(i * 360 / n, r * score_map[lbl])[1]:.2f}'
-            for i, lbl in enumerate(labels)
-        )
+            data_pts = ' '.join(
+                f'{point(i, r * get_axis(lbl) / levels)[0]:.2f},'
+                f'{point(i, r * get_axis(lbl) / levels)[1]:.2f}'
+                for i, lbl in enumerate(labels)
+            )
+        else:
+            # Detail/read-only view: derive shape from flavor_profile + score
+            score_map = {lbl: 0.0 for lbl in labels}
+            if whisky.flavor_profile and whisky.flavor_profile in score_map:
+                value = (whisky.score / 10.0) if whisky.score is not None else 1.0
+                score_map[whisky.flavor_profile] = max(0.0, min(1.0, value))
+            data_pts = ' '.join(
+                f'{point(i, r * score_map[lbl])[0]:.2f},'
+                f'{point(i, r * score_map[lbl])[1]:.2f}'
+                for i, lbl in enumerate(labels)
+            )
+
         svg_parts.append(
-            f'<polygon points="{data_pts}" '
+            f'<polygon id="radar-polygon" points="{data_pts}" '
             f'fill="#c8a96e" fill-opacity="0.25" '
-            f'stroke="#c8a96e" stroke-width="1.5"/>'
+            f'stroke="#c8a96e" stroke-width="1.5" pointer-events="none"/>'
         )
 
-        # dots on each spoke
-        for i, lbl in enumerate(labels):
-            px, py = point(i * 360 / n, r * score_map[lbl])
-            title = f'<title>{lbl}</title>' if interactive else ''
+        # dots
+        if interactive:
+            vals = [get_axis(lbl) for lbl in labels]
+        else:
+            vals = [int(score_map[lbl] * levels) for lbl in labels]
+
+        for i, (lbl, v) in enumerate(zip(labels, vals)):
+            if v > 0:
+                px, py = point(i, r * v / levels)
+                svg_parts.append(
+                    f'<circle cx="{px:.2f}" cy="{py:.2f}" r="4" '
+                    f'fill="#C8832A" stroke="#1A120A" stroke-width="1.5" '
+                    f'class="radar-dot" pointer-events="none"/>'
+                )
+    else:
+        # No whisky yet — emit an empty polygon so JS can update it
+        if interactive:
+            empty_pts = ' '.join(
+                f'{point(i, 0)[0]:.2f},{point(i, 0)[1]:.2f}'
+                for i in range(n)
+            )
             svg_parts.append(
-                f'<circle cx="{px:.2f}" cy="{py:.2f}" r="3" '
-                f'fill="#c8a96e">{title}</circle>'
+                f'<polygon id="radar-polygon" points="{empty_pts}" '
+                f'fill="#c8a96e" fill-opacity="0.25" '
+                f'stroke="#c8a96e" stroke-width="1.5" pointer-events="none"/>'
             )
 
     svg_parts.append('</svg>')

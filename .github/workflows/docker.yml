@@ -91,6 +91,7 @@ jobs:
         run: |
           cp app.py whiskywise/app.py
           cp requirements.txt whiskywise/requirements.txt
+          rm -rf whiskywise/templates
           cp -r templates whiskywise/templates
 
       - name: Commit if whiskywise/ changed

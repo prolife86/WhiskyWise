@@ -184,14 +184,14 @@ def render_radar_svg(whisky, interactive=False):
                 for i, lbl in enumerate(labels)
             )
         else:
-            # Detail/read-only view: derive shape from flavor_profile + score
-            score_map = {lbl: 0.0 for lbl in labels}
-            if whisky.flavor_profile and whisky.flavor_profile in score_map:
-                value = (whisky.score / 10.0) if whisky.score is not None else 1.0
-                score_map[whisky.flavor_profile] = max(0.0, min(1.0, value))
+            # Detail/read-only view: use the stored per-axis radar_* fields (0–5 scale)
+            def get_axis(axis):
+                val = getattr(whisky, f'radar_{axis}', None)
+                return int(val) if val is not None else 0
+
             data_pts = ' '.join(
-                f'{point(i, r * score_map[lbl])[0]:.2f},'
-                f'{point(i, r * score_map[lbl])[1]:.2f}'
+                f'{point(i, r * get_axis(lbl) / levels)[0]:.2f},'
+                f'{point(i, r * get_axis(lbl) / levels)[1]:.2f}'
                 for i, lbl in enumerate(labels)
             )
 
@@ -205,7 +205,7 @@ def render_radar_svg(whisky, interactive=False):
         if interactive:
             vals = [get_axis(lbl) for lbl in labels]
         else:
-            vals = [int(score_map[lbl] * levels) for lbl in labels]
+            vals = [get_axis(lbl) for lbl in labels]
 
         for i, (lbl, v) in enumerate(zip(labels, vals)):
             if v > 0:

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Collection — WhiskyWise{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.25rem;">
+  <h1 style="color:var(--amber-glow);">Collection</h1>
+  <a href="{{ url_for('new_whisky') }}" class="btn btn-primary">+ Add Whisky</a>
+</div>
+
+<form method="GET" action="{{ url_for('collection') }}" id="filter-form">
+  <div class="search-bar">
+    <input type="text" name="q" id="search-q" value="{{ filters.q }}"
+           placeholder="Search name, distillery, region, barcode…" autocomplete="off">
+    <button type="button" class="scan-btn" onclick="openScanModal('search-q')" title="Scan barcode to search">📷</button>
+    <button type="submit" class="scan-btn" title="Search">🔍</button>
+  </div>
+  <div class="filter-row">
+    <select name="flavor" onchange="this.form.submit()">
+      <option value="">All flavors</option>
+      {% for f in flavor_profiles %}
+      <option value="{{ f }}" {% if filters.flavor == f %}selected{% endif %}>{{ f|capitalize }}</option>
+      {% endfor %}
+    </select>
+    <input type="number" name="min_score" value="{{ filters.min_score }}"
+           placeholder="Min score" min="0" max="10" step="0.1" style="max-width:120px;">
+    <input type="number" name="max_price" value="{{ filters.max_price }}"
+           placeholder="Max €" min="0" step="1" style="max-width:120px;">
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All status</option>
+      <option value="open"     {% if filters.status=='open'     %}selected{% endif %}>Open</option>
+      <option value="stashed"  {% if filters.status=='stashed'  %}selected{% endif %}>Stashed</option>
+      <option value="finished" {% if filters.status=='finished' %}selected{% endif %}>Finished</option>
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+    {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status %}
+    <a href="{{ url_for('collection') }}" class="btn btn-ghost btn-sm">✕ Clear</a>
+    {% endif %}
+  </div>
+</form>
+
+<p style="font-size:0.82rem;color:var(--ash);margin:0.75rem 0 1rem;">
+  {{ whiskies|length }} bottle{{ 's' if whiskies|length != 1 }}
+  {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status %}
+  matching filters
+  {% endif %}
+</p>
+
+{% if whiskies %}
+<div class="whisky-grid">
+{% for w in whiskies %}
+<a href="{{ url_for('whisky_detail', wid=w.id) }}" class="whisky-card">
+  <div class="whisky-card-thumb">
+    {% if w.photo_front %}
+      <img src="{{ url_for('serve_photo', filename=w.photo_front) }}" alt="{{ w.name }}" loading="lazy">
+    {% else %}
+      <span class="no-photo">🥃</span>
+    {% endif %}
+  </div>
+  <div class="whisky-card-body">
+    <div class="whisky-card-name">{{ w.name }}</div>
+    {% if w.distillery %}
+      <div class="whisky-card-distillery">{{ w.distillery }}{% if w.region %} · {{ w.region }}{% endif %}</div>
+    {% endif %}
+    <div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem;align-items:center;">
+      {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile }}</span>{% endif %}
+      {% if w.retired %}<span class="status-pill status-retired">retired</span>{% endif %}
+    </div>
+    <div class="whisky-card-footer">
+      <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        {% if w.price %}
+          <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">€{{ '%.2f'|format(w.price) }}</span>
+        {% endif %}
+        {% if w.score is not none %}
+          <div class="score-badge small">{{ '%.1f'|format(w.score) }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</a>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="card" style="text-align:center;padding:3rem 1rem;">
+  <div style="font-size:3rem;margin-bottom:0.75rem;">🔍</div>
+  {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status %}
+    <p>No whiskies match your filters.</p>
+    <a href="{{ url_for('collection') }}" class="btn btn-ghost" style="margin-top:1rem;">Clear filters</a>
+  {% else %}
+    <p>Your collection is empty.</p>
+    <a href="{{ url_for('new_whisky') }}" class="btn btn-primary" style="margin-top:1rem;">Add your first whisky</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

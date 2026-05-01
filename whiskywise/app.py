@@ -2,6 +2,7 @@ import os
 import re
 import csv
 import io
+import secrets
 from datetime import datetime, timezone
 from functools import wraps
 from urllib.parse import urlparse
@@ -23,7 +24,19 @@ app = Flask(__name__)
 APP_VERSION = os.environ.get('APP_VERSION', 'dev')
 
 # ── Config ────────────────────────────────────────────────────────────────────
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
+# Fix 8: Guard against weak/missing SECRET_KEY — generate an ephemeral random
+# key rather than silently using a predictable placeholder.
+_secret_key = os.environ.get('SECRET_KEY', '')
+_known_placeholders = {'', 'dev-secret-change-me', 'change-this-to-a-long-random-secret', 'change-me-in-production'}
+if _secret_key in _known_placeholders:
+    _secret_key = secrets.token_hex(32)
+    import logging
+    logging.getLogger(__name__).warning(
+        "[WhiskyWise] SECRET_KEY is not set or uses a placeholder. "
+        "An ephemeral random key has been generated — sessions will not "
+        "survive a container restart. Set SECRET_KEY in docker-compose.yml."
+    )
+app.config['SECRET_KEY'] = _secret_key
 
 # Always resolve to absolute path so SQLite opens the right file regardless of cwd
 db_path = os.path.abspath(os.environ.get('DATABASE_PATH', 'data/db/whiskywise.db'))
@@ -38,8 +51,17 @@ os.makedirs(upload_folder, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_folder
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # 64 MB
 app.config['WTF_CSRF_ENABLED'] = True
+# Fix 1: cookie hardening
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+# Fix 2: gif removed — it's converted to jpg anyway and adds unnecessary attack surface
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+# Fix 1: Pillow decompression bomb guard (40 MP cap)
+Image.MAX_IMAGE_PIXELS = 40_000_000
 
 FLAVOR_PROFILES = [
     'floral', 'fresh', 'fruity', 'malty', 'medicinal',
@@ -60,6 +82,11 @@ limiter = Limiter(
 )
 
 csrf = CSRFProtect(app)
+
+# Fix 5: pre-compute a dummy hash used in the login route so the password
+# check always runs regardless of whether the username exists, preventing
+# timing-based username enumeration.
+_DUMMY_HASH = generate_password_hash('__dummy__')
 
 def render_radar_svg(whisky, interactive=False):
     """Return an inline SVG radar chart for a whisky's flavor profile.
@@ -151,6 +178,22 @@ def render_radar_svg(whisky, interactive=False):
 @app.context_processor
 def inject_globals():
     return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg}
+
+# Fix 1: security response headers on every response
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self';"
+    )
+    return response
 
 # ── Models ────────────────────────────────────────────────────────────────────
 class User(UserMixin, db.Model):
@@ -361,7 +404,14 @@ def login():
         return redirect(url_for('index'))
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form.get('username', '').strip()).first()
-        if user and user.check_password(request.form.get('password', '')):
+        # Fix 5: always call check_password_hash regardless of whether the user
+        # exists so the response time is identical for unknown usernames and
+        # wrong passwords, preventing timing-based username enumeration.
+        pw_ok = check_password_hash(
+            user.password_hash if user else _DUMMY_HASH,
+            request.form.get('password', '')
+        )
+        if user and pw_ok:
             login_user(user, remember=True)
             # Validate next param to prevent open-redirect
             return redirect(_safe_next(request.args.get('next')) or url_for('index'))
@@ -692,7 +742,8 @@ def rotate_photo(wid, slot):
         img.save(path, **save_kwargs)
     except Exception as exc:
         app.logger.error("Photo rotate failed: %s", exc)
-        return jsonify({'ok': False, 'error': str(exc)}), 500
+        # Fix 4: don't leak internal exception detail (file paths etc.) to the client
+        return jsonify({'ok': False, 'error': 'Rotation failed. Check server logs.'}), 500
     return jsonify({'ok': True})
 
 # ── Export ────────────────────────────────────────────────────────────────────
@@ -736,6 +787,13 @@ def not_found(e):
 def too_large(e):
     flash('Upload too large. Please use smaller photos (max 64 MB total).', 'error')
     return redirect(request.referrer or url_for('new_whisky'))
+
+# Fix 3: handle expired/missing CSRF tokens with a friendly message instead
+# of a raw 400 response.
+@app.errorhandler(CSRFError)
+def csrf_error(e):
+    flash('Your session has expired — please try again.', 'error')
+    return redirect(request.referrer or url_for('index'))
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 _init_db()

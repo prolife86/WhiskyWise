@@ -296,6 +296,13 @@ class Whisky(db.Model):
     photo_barcode  = db.Column(db.String(300))
     wishlist       = db.Column(db.Boolean, default=False)
     wishlist_notes = db.Column(db.Text)
+    radar_woody    = db.Column(db.Integer, default=0)
+    radar_smoky    = db.Column(db.Integer, default=0)
+    radar_cereal   = db.Column(db.Integer, default=0)
+    radar_floral   = db.Column(db.Integer, default=0)
+    radar_fruity   = db.Column(db.Integer, default=0)
+    radar_medicinal= db.Column(db.Integer, default=0)
+    radar_fiery    = db.Column(db.Integer, default=0)
     created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -380,6 +387,13 @@ def _fill_whisky(w, form):
     w.flavor_profile = form.get('flavor_profile', '').strip()
     w.score          = _float_or_none(form.get('score'))
     w.wishlist_notes = form.get('wishlist_notes', '').strip()
+    for axis in ('woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery'):
+        raw = form.get(f'radar_{axis}', '0')
+        try:
+            val = int(raw)
+        except (ValueError, TypeError):
+            val = 0
+        setattr(w, f'radar_{axis}', max(0, min(5, val)))
     w.updated_at     = datetime.now(timezone.utc)
 
 

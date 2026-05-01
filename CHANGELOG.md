@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
  
+## [1.4.1] - 2026-04-30
+ 
+### Fixed
+- **App fails to start with Flask-SQLAlchemy 3.x** — `db.engine` can no longer be
+  accessed at module import time outside an application context. Two call sites were
+  affected:
+  - Removed the module-level `@event.listens_for(db.engine, 'connect')` WAL-mode
+    listener. WAL mode is now enabled inside `_init_db()` where an app context is
+    already established, using `db.engine.connect()` and SQLAlchemy's `db.text()`.
+  - Removed the stale `from sqlalchemy import event` import that became unused after
+    the above fix.
+- **Worker boot crash in gunicorn** — the above changes resolve the
+  `RuntimeError: Working outside of application context` that caused every gunicorn
+  worker to exit with code 3 on startup.
+### Changed
+- WAL journal mode for SQLite is now set once during `_init_db()` rather than on
+  every new database connection. Behaviour for end users is identical.
+  
+---
+ 
 ## [1.3.4] — 2026-04-30 🔒🧹 Security, Code Quality & Compatibility
  
 ### Security

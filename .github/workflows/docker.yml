@@ -177,7 +177,7 @@ jobs:
 
     steps:
       - name: Append Docker image info to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: "v${{ needs.extract-version.outputs.version }}"
           # append_body adds the Docker details below whatever you wrote in the

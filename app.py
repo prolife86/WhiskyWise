@@ -801,73 +801,473 @@ def rotate_photo(wid, slot):
     if not os.path.isfile(path):
         abort(404)
     try:
-        img = Image.open(path)
-        # Rotate 90° clockwise (expand=True keeps full image, no cropping)
-        img = img.rotate(-90, expand=True)
-        ext = filename.rsplit('.', 1)[1].lower()
+import os
+import re
+import csv
+import io
+import secrets
+from datetime import datetime, timezone
+from functools import wraps
+from urllib.parse import urlparse
+from flask import (Flask, render_template, request, redirect, url_for,
+                   flash, jsonify, send_file, abort, session)
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import (LoginManager, UserMixin, login_user, logout_user,
+                         login_required, current_user)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from PIL import Image, ImageOps
+
+app = Flask(__name__)
+
+# ── Version ───────────────────────────────────────────────────────────────────
+APP_VERSION = os.environ.get('APP_VERSION', 'dev')
+
+# ── Config ────────────────────────────────────────────────────────────────────
+# Fix 8: Guard against weak/missing SECRET_KEY — generate an ephemeral random
+# key rather than silently using a predictable placeholder.
+_secret_key = os.environ.get('SECRET_KEY', '')
+_known_placeholders = {'', 'dev-secret-change-me', 'change-this-to-a-long-random-secret', 'change-me-in-production'}
+if _secret_key in _known_placeholders:
+    _secret_key = secrets.token_hex(32)
+    import logging
+    logging.getLogger(__name__).warning(
+        "[WhiskyWise] SECRET_KEY is not set or uses a placeholder. "
+        "An ephemeral random key has been generated — sessions will not "
+        "survive a container restart. Set SECRET_KEY in docker-compose.yml."
+    )
+app.config['SECRET_KEY'] = _secret_key
+
+# Always resolve to absolute path so SQLite opens the right file regardless of cwd
+db_path = os.path.abspath(os.environ.get('DATABASE_PATH', 'data/db/whiskywise.db'))
+_db_dir = os.path.dirname(db_path)
+if _db_dir:
+    os.makedirs(_db_dir, exist_ok=True)
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+upload_folder = os.path.abspath(os.environ.get('UPLOAD_FOLDER', 'data/uploads'))
+os.makedirs(upload_folder, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = upload_folder
+app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # 64 MB
+app.config['WTF_CSRF_ENABLED'] = True
+# Fix 1: cookie hardening
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+
+# Fix 2: gif removed — it's converted to jpg anyway and adds unnecessary attack surface
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+MIN_PASSWORD_LEN = 8  # enforced everywhere a password is set or changed
+
+# Fix 1: Pillow decompression bomb guard (40 MP cap)
+Image.MAX_IMAGE_PIXELS = 40_000_000
+
+FLAVOR_PROFILES = [
+    'floral', 'fresh', 'fruity', 'malty', 'medicinal',
+    'oily', 'peaty', 'smoky', 'spicy', 'sweet',
+    'vanilla', 'vegetative', 'woody',
+]
+
+db = SQLAlchemy(app)
+
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],          # No global limit — only applied where decorated
+    storage_uri='memory://',    # In-process storage; fine for single-worker gunicorn
+)
+
+csrf = CSRFProtect(app)
+
+# Fix 5: pre-compute a dummy hash used in the login route so the password
+# check always runs regardless of whether the username exists, preventing
+# timing-based username enumeration.
+_DUMMY_HASH = generate_password_hash('__dummy__')
+
+def render_radar_svg(whisky, interactive=False):
+    """Return an inline SVG radar chart for a whisky's flavor profile.
+
+    The chart plots the 7 WhiskyWise flavor axes used by the form.
+    When *whisky* is None (e.g. the new-whisky form) an empty placeholder
+    ring is rendered.
+    When *interactive* is True the SVG receives clickable pie-segment cells
+    (class="radar-cell") so radarSetVal() in the form JS can handle them,
+    and the data polygon uses the per-axis radar_* fields on the whisky.
+    """
+    # These 7 axes must match _RADAR_AXES in whisky_form.html JS exactly.
+    labels = ['woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery']
+    n = len(labels)
+    cx, cy, r = 160, 160, 110        # centre and outer radius of chart
+    levels = 5                        # concentric grid rings (1–5)
+
+    import math
+
+    def point(idx, radius):
+        """Return (x, y) for spoke *idx* at *radius* from centre."""
+        angle = (idx / n * 2 * math.pi) - (math.pi / 2)
+        return cx + radius * math.cos(angle), cy + radius * math.sin(angle)
+
+    svg_parts = [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" '
+        'width="320" height="320" class="radar-svg">'
+    ]
+
+    # ── interactive cell polygons (render BEFORE grid so grid sits on top) ──
+    if interactive:
+        half_step = math.pi / n   # half the angular gap between spokes
+        for i, axis in enumerate(labels):
+            for lvl in range(1, levels + 1):
+                r_inner = r * (lvl - 1) / levels
+                r_outer = r * lvl / levels
+                # Four corners of this cell: inner-left, inner-right,
+                # outer-right, outer-left
+                angle_left  = (i / n * 2 * math.pi) - (math.pi / 2) - half_step
+                angle_right = (i / n * 2 * math.pi) - (math.pi / 2) + half_step
+                pts_list = [
+                    (cx + r_inner * math.cos(angle_left),  cy + r_inner * math.sin(angle_left)),
+                    (cx + r_inner * math.cos(angle_right), cy + r_inner * math.sin(angle_right)),
+                    (cx + r_outer * math.cos(angle_right), cy + r_outer * math.sin(angle_right)),
+                    (cx + r_outer * math.cos(angle_left),  cy + r_outer * math.sin(angle_left)),
+                ]
+                pts_str = ' '.join(f'{x:.2f},{y:.2f}' for x, y in pts_list)
+                svg_parts.append(
+                    f'<polygon class="radar-cell" points="{pts_str}" '
+                    f'fill="rgba(0,0,0,0)" stroke="none" '
+                    f'style="cursor:pointer;" '
+                    f'onmouseover="this.style.fill=\'rgba(200,131,42,0.18)\'" '
+                    f'onmouseout="this.style.fill=\'rgba(0,0,0,0)\'" '
+                    f'onclick="radarSetVal(\'{axis}\',{lvl})"/>'
+                )
+
+    # ── concentric grid rings ─────────────────────────────────────────────
+    for lvl in range(1, levels + 1):
+        ring_r = r * lvl / levels
+        pts = ' '.join(f'{point(i, ring_r)[0]:.2f},{point(i, ring_r)[1]:.2f}'
+                       for i in range(n))
+        svg_parts.append(
+            f'<polygon points="{pts}" fill="none" '
+            f'stroke="#c8a96e" stroke-width="0.5" stroke-opacity="0.4" pointer-events="none"/>'
+        )
+
+    # ── spokes ────────────────────────────────────────────────────────────
+    for i in range(n):
+        x, y = point(i, r)
+        svg_parts.append(
+            f'<line x1="{cx}" y1="{cy}" x2="{x:.2f}" y2="{y:.2f}" '
+            f'stroke="#c8a96e" stroke-width="0.5" stroke-opacity="0.4" pointer-events="none"/>'
+        )
+
+    # ── axis labels ───────────────────────────────────────────────────────
+    for i, lbl in enumerate(labels):
+        x, y = point(i, r + 18)
+        svg_parts.append(
+            f'<text x="{x:.2f}" y="{y:.2f}" text-anchor="middle" '
+            f'dominant-baseline="middle" font-size="9" fill="#c8a96e" '
+            f'font-family="sans-serif" pointer-events="none">{lbl}</text>'
+        )
+
+    # ── data polygon ──────────────────────────────────────────────────────
+    if whisky is not None:
+        if interactive:
+            # In the form, use the dedicated per-axis radar_* fields (0–5 scale)
+            def get_axis(axis):
+                val = getattr(whisky, f'radar_{axis}', None)
+                return int(val) if val is not None else 0
+
+            data_pts = ' '.join(
+                f'{point(i, r * get_axis(lbl) / levels)[0]:.2f},'
+                f'{point(i, r * get_axis(lbl) / levels)[1]:.2f}'
+                for i, lbl in enumerate(labels)
+            )
+        else:
+            # Detail/read-only view: derive shape from flavor_profile + score
+            score_map = {lbl: 0.0 for lbl in labels}
+            if whisky.flavor_profile and whisky.flavor_profile in score_map:
+                value = (whisky.score / 10.0) if whisky.score is not None else 1.0
+                score_map[whisky.flavor_profile] = max(0.0, min(1.0, value))
+            data_pts = ' '.join(
+                f'{point(i, r * score_map[lbl])[0]:.2f},'
+                f'{point(i, r * score_map[lbl])[1]:.2f}'
+                for i, lbl in enumerate(labels)
+            )
+
+        svg_parts.append(
+            f'<polygon id="radar-polygon" points="{data_pts}" '
+            f'fill="#c8a96e" fill-opacity="0.25" '
+            f'stroke="#c8a96e" stroke-width="1.5" pointer-events="none"/>'
+        )
+
+        # dots
+        if interactive:
+            vals = [get_axis(lbl) for lbl in labels]
+        else:
+            vals = [int(score_map[lbl] * levels) for lbl in labels]
+
+        for i, (lbl, v) in enumerate(zip(labels, vals)):
+            if v > 0:
+                px, py = point(i, r * v / levels)
+                svg_parts.append(
+                    f'<circle cx="{px:.2f}" cy="{py:.2f}" r="4" '
+                    f'fill="#C8832A" stroke="#1A120A" stroke-width="1.5" '
+                    f'class="radar-dot" pointer-events="none"/>'
+                )
+    else:
+        # No whisky yet — emit an empty polygon so JS can update it
+        if interactive:
+            empty_pts = ' '.join(
+                f'{point(i, 0)[0]:.2f},{point(i, 0)[1]:.2f}'
+                for i in range(n)
+            )
+            svg_parts.append(
+                f'<polygon id="radar-polygon" points="{empty_pts}" '
+                f'fill="#c8a96e" fill-opacity="0.25" '
+                f'stroke="#c8a96e" stroke-width="1.5" pointer-events="none"/>'
+            )
+
+    svg_parts.append('</svg>')
+    return '\n'.join(svg_parts)
+
+
+@app.context_processor
+def inject_globals():
+    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg}
+
+# Fix 1: security response headers on every response
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self';"
+    )
+    return response
+
+
+# Redirect users who are still on the default password to the change-password
+# page before they can access anything else.
+_FORCE_PW_EXEMPT = {'force_change_password', 'logout', 'login',
+                    'static', 'serve_photo',
+                    # API routes — token auth clients skip this entirely
+                    'api_create_token', 'api_list_tokens', 'api_revoke_token',
+                    'api_stats', 'api_collection', 'api_wishlist',
+                    'api_create_wishlist_item', 'api_update_wishlist_item',
+                    'api_whisky_detail', 'api_create_whisky', 'api_update_whisky',
+                    'api_delete_whisky', 'api_upload_photo', 'api_delete_photo',
+                    'barcode_lookup', 'rotate_photo'}
+
+@app.before_request
+def enforce_password_change():
+    """If the session carries the must_change_password flag, keep the user on
+    the dedicated change-password page until they comply."""
+    if not session.get('must_change_password'):
+        return
+    if request.endpoint in _FORCE_PW_EXEMPT:
+        return
+    # API Bearer-token requests are never flagged — they have no session
+    if request.headers.get('Authorization', '').startswith('Bearer '):
+        return
+    return redirect(url_for('force_change_password'))
+
+# ── Models ────────────────────────────────────────────────────────────────────
+class User(UserMixin, db.Model):
+    id            = db.Column(db.Integer, primary_key=True)
+    username      = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    is_admin      = db.Column(db.Boolean, default=False, nullable=False)
+    created_at    = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def set_password(self, pw):
+        self.password_hash = generate_password_hash(pw)
+
+    def check_password(self, pw):
+        return check_password_hash(self.password_hash, pw)
+
+    @property
+    def whisky_count(self):
+        return Whisky.query.filter_by(user_id=self.id, wishlist=False).count()
+
+
+class Whisky(db.Model):
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name           = db.Column(db.String(200), nullable=False)
+    distillery     = db.Column(db.String(200))
+    region         = db.Column(db.String(100))
+    age            = db.Column(db.String(20))
+    abv            = db.Column(db.Float)
+    barcode        = db.Column(db.String(100))
+    status         = db.Column(db.String(20), default='stashed')
+    retired        = db.Column(db.Boolean, default=False)
+    price          = db.Column(db.Float)
+    store          = db.Column(db.String(200))
+    notes          = db.Column(db.Text)
+    nose           = db.Column(db.Text)
+    palate         = db.Column(db.Text)
+    finish         = db.Column(db.Text)
+    flavor_profile = db.Column(db.String(50))
+    score          = db.Column(db.Float)   # NULL = unscored; 0.0 is a valid score
+    # Radar chart axes — each stored as an integer 0–5 (0 = unset)
+    radar_woody      = db.Column(db.Integer, default=0)
+    radar_smoky      = db.Column(db.Integer, default=0)
+    radar_cereal     = db.Column(db.Integer, default=0)
+    radar_floral     = db.Column(db.Integer, default=0)
+    radar_fruity     = db.Column(db.Integer, default=0)
+    radar_medicinal  = db.Column(db.Integer, default=0)
+    radar_fiery      = db.Column(db.Integer, default=0)
+    photo_front    = db.Column(db.String(300))
+    photo_back     = db.Column(db.String(300))
+    photo_cask     = db.Column(db.String(300))
+    photo_barcode  = db.Column(db.String(300))
+    wishlist       = db.Column(db.Boolean, default=False)
+    wishlist_notes = db.Column(db.Text)
+    created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref='whiskies')
+
+
+class ApiToken(db.Model):
+    """Personal API tokens for mobile / third-party clients.
+
+    Each token is a 32-byte hex string stored as a SHA-256 digest so that a
+    database leak does not expose live credentials.  The raw token is shown
+    to the user exactly once (at creation time) and never stored in plain
+    text.
+    """
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name       = db.Column(db.String(100), nullable=False)          # human label
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used  = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship('User', backref='api_tokens')
+
+    @staticmethod
+    def hash(raw: str) -> str:
+        import hashlib
+        return hashlib.sha256(raw.encode()).hexdigest()
+
+    @classmethod
+    def create(cls, user_id: int, name: str):
+        """Generate a new token, persist its hash, and return the raw value."""
+        raw = secrets.token_hex(32)
+        token = cls(user_id=user_id, name=name, token_hash=cls.hash(raw))
+        db.session.add(token)
+        db.session.commit()
+        return raw, token
+
+    @classmethod
+    def lookup(cls, raw: str):
+        """Return the ApiToken row for *raw*, or None if invalid."""
+        return cls.query.filter_by(token_hash=cls.hash(raw)).first()
+
+
+@login_manager.user_loader
+def load_user(uid):
+    return db.session.get(User, int(uid))
+
+# ── Decorators ────────────────────────────────────────────────────────────────
+def admin_required(f):
+    """Must be stacked INSIDE @login_required so unauthenticated users get
+    redirected to login rather than receiving a bare 403."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def save_photo(file, whisky_id, slot):
+    if not file or not file.filename:
+        return None
+    if not allowed_file(file.filename):
+        return None
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    save_ext = ext if ext in ('png', 'webp') else 'jpg'
+    filename = secure_filename(
+        f"w{whisky_id}_{slot}_{int(datetime.now(timezone.utc).timestamp())}.{save_ext}"
+    )
+    path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    try:
+        img = Image.open(file)
+        # Auto-correct EXIF orientation so portrait photos aren't sideways
+        img = ImageOps.exif_transpose(img)
+        if save_ext == 'jpg' and img.mode != 'RGB':
+            img = img.convert('RGB')
+        img.thumbnail((1200, 1200), Image.LANCZOS)
         save_kwargs = {'optimize': True}
-        if ext == 'jpg':
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
+        if save_ext == 'jpg':
             save_kwargs['quality'] = 85
         img.save(path, **save_kwargs)
     except Exception as exc:
-        app.logger.error("Photo rotate failed: %s", exc)
-        # Fix 4: don't leak internal exception detail (file paths etc.) to the client
-        return jsonify({'ok': False, 'error': 'Rotation failed. Check server logs.'}), 500
-    return jsonify({'ok': True})
+        app.logger.error("Photo save failed: %s", exc)
+        return None
+    return filename
 
-# ── Export ────────────────────────────────────────────────────────────────────
-@app.route('/export/csv')
-@login_required
-def export_csv():
-    whiskies = (Whisky.query
-                .filter_by(user_id=current_user.id, wishlist=False)
-                .order_by(Whisky.name).all())
-    si = io.StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['Name', 'Distillery', 'Region', 'Age', 'ABV', 'Barcode',
-                     'Status', 'Retired', 'Price', 'Store',
-                     'Flavor Profile', 'Score',
-                     'Nose', 'Palate', 'Finish', 'Notes', 'Added'])
-    for w in whiskies:
-        writer.writerow([
-            w.name, w.distillery, w.region, w.age, w.abv, w.barcode,
-            w.status, 'Yes' if w.retired else 'No',
-            w.price, w.store,
-            w.flavor_profile, w.score,
-            w.nose, w.palate, w.finish, w.notes,
-            w.created_at.strftime('%Y-%m-%d'),
-        ])
-    output = io.BytesIO()
-    output.write(si.getvalue().encode('utf-8-sig'))  # BOM for Excel compatibility
-    output.seek(0)
-    return send_file(output, mimetype='text/csv',
-                     download_name='whiskywise_export.csv', as_attachment=True)
 
-# ── Error handlers ────────────────────────────────────────────────────────────
-@app.errorhandler(403)
-def forbidden(e):
-    return render_template('403.html'), 403
+def _float_or_none(val):
+    """Convert form string to float, returning None for empty/missing values.
+    Correctly handles '0' and '0.0' as valid zero scores."""
+    if val is None or str(val).strip() == '':
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
 
-@app.errorhandler(404)
-def not_found(e):
-    return render_template('404.html'), 404
 
-@app.errorhandler(413)
-def too_large(e):
-    flash('Upload too large. Please use smaller photos (max 64 MB total).', 'error')
-    return redirect(request.referrer or url_for('new_whisky'))
+def _fill_whisky(w, form):
+    """Populate whisky fields from a form dict. Does NOT touch w.wishlist."""
+    w.name           = form.get('name', '').strip()
+    w.distillery     = form.get('distillery', '').strip()
+    w.region         = form.get('region', '').strip()
+    w.age            = form.get('age', '').strip()
+    w.abv            = _float_or_none(form.get('abv'))
+    w.barcode        = form.get('barcode', '').strip()
+    w.status         = form.get('status', 'stashed')
+    w.retired        = form.get('retired') == 'on'
+    w.price          = _float_or_none(form.get('price'))
+    w.store          = form.get('store', '').strip()
+    w.notes          = form.get('notes', '').strip()
+    w.nose           = form.get('nose', '').strip()
+    w.palate         = form.get('palate', '').strip()
+    w.finish         = form.get('finish', '').strip()
+    w.flavor_profile = form.get('flavor_profile', '').strip()
+    w.score          = _float_or_none(form.get('score'))
+    w.wishlist_notes = form.get('wishlist_notes', '').strip()
+    # Radar axes — clamp to 0–5
+    for axis in ('woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery'):
+        val = _float_or_none(form.get(f'radar_{axis}'))
+        setattr(w, f'radar_{axis}', max(0, min(5, int(val))) if val is not None else 0)
+    w.updated_at     = datetime.now(timezone.utc)
 
-# Fix 3: handle expired/missing CSRF tokens with a friendly message instead
-# of a raw 400 response.
-@app.errorhandler(CSRFError)
-def csrf_error(e):
-    flash('Your session has expired — please try again.', 'error')
-    return redirect(request.referrer or url_for('index'))
 
-# ── Startup ───────────────────────────────────────────────────────────────────
-_init_db()
-
-if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=5000)
+def _handle_photos(w, files):
+    for slot in ('front', 'back', 'cask', 'barcode'):
+        f = files.get(f'photo_{slot}')
+        if f and f.filename:
+            saved = save_photo(f, w.id, slot)
+            if saved:
+                setattr(w, f'
+debug=False, host='0.0.0.0', port=5000)

@@ -6,7 +6,7 @@ Track your whisky collection, log tasting notes, and analyze flavor profiles —
 
 * 📝 Tasting journal (Nose, Palate, Finish)
 * ⭐ 10-point rating system
-* 🧠 Flavor profiles (13 presets + radar chart visualization)
+* 🧠 Flavor profiles (16 presets + radar chart visualization)
 * 🗂 Collection tracking (Stashed, Open, Finished)
 * 📸 Photo storage (labels, bottle, barcode)
 * 💰 Purchase tracking (price, store, retired)

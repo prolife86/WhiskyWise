@@ -436,28 +436,48 @@ def _float_or_none(val):
 
 def _fill_whisky(w, form):
     """Populate whisky fields from a form dict. Does NOT touch w.wishlist."""
-    w.name           = form.get('name', '').strip()
-    w.distillery     = form.get('distillery', '').strip()
-    w.region         = form.get('region', '').strip()
-    w.age            = form.get('age', '').strip()
+    w.name           = form.get('name', '').strip()[:200]
+    w.distillery     = form.get('distillery', '').strip()[:200]
+    w.region         = form.get('region', '').strip()[:100]
+    w.age            = form.get('age', '').strip()[:20]
     w.abv            = _float_or_none(form.get('abv'))
-    w.barcode        = form.get('barcode', '').strip()
+    w.barcode        = form.get('barcode', '').strip()[:100]
     w.status         = form.get('status', 'stashed')
     w.retired        = form.get('retired') == 'on'
     w.price          = _float_or_none(form.get('price'))
-    w.store          = form.get('store', '').strip()
-    w.notes          = form.get('notes', '').strip()
-    w.nose           = form.get('nose', '').strip()
-    w.palate         = form.get('palate', '').strip()
-    w.finish         = form.get('finish', '').strip()
-    w.flavor_profile = form.get('flavor_profile', '').strip()
+    w.store          = form.get('store', '').strip()[:200]
+    w.notes          = form.get('notes', '').strip()[:4000]
+    w.nose           = form.get('nose', '').strip()[:4000]
+    w.palate         = form.get('palate', '').strip()[:4000]
+    w.finish         = form.get('finish', '').strip()[:4000]
+    w.flavor_profile = form.get('flavor_profile', '').strip()[:50]
     w.score          = _float_or_none(form.get('score'))
-    w.wishlist_notes = form.get('wishlist_notes', '').strip()
+    w.wishlist_notes = form.get('wishlist_notes', '').strip()[:4000]
     # Radar axes — clamp to 0–5
     for axis in ('woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery'):
         val = _float_or_none(form.get(f'radar_{axis}'))
         setattr(w, f'radar_{axis}', max(0, min(5, int(val))) if val is not None else 0)
     w.updated_at     = datetime.now(timezone.utc)
+
+
+def _delete_photo_file(filename):
+    """Remove a photo file from disk. Silently ignores missing files."""
+    if not filename:
+        return
+    path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(filename))
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    except Exception as exc:
+        app.logger.warning("Could not delete photo file %s: %s", filename, exc)
+
+
+def _delete_all_photos(w):
+    """Delete all photo files on disk for a whisky record."""
+    for slot in ('photo_front', 'photo_back', 'photo_cask', 'photo_barcode'):
+        _delete_photo_file(getattr(w, slot))
+
 
 
 def _handle_photos(w, files):
@@ -466,6 +486,7 @@ def _handle_photos(w, files):
         if f and f.filename:
             saved = save_photo(f, w.id, slot)
             if saved:
+                _delete_photo_file(getattr(w, f'photo_{slot}'))
                 setattr(w, f'photo_{slot}', saved)
 
 
@@ -550,23 +571,23 @@ def _whisky_to_dict(w):
 
 def _fill_whisky_from_json(w, data):
     """Populate whisky fields from a parsed JSON dict (mobile POST/PUT body)."""
-    if 'name'           in data: w.name           = str(data['name']).strip()
-    if 'distillery'     in data: w.distillery      = str(data['distillery']).strip()
-    if 'region'         in data: w.region          = str(data['region']).strip()
-    if 'age'            in data: w.age             = str(data['age']).strip()
+    if 'name'           in data: w.name           = str(data['name']).strip()[:200]
+    if 'distillery'     in data: w.distillery      = str(data['distillery']).strip()[:200]
+    if 'region'         in data: w.region          = str(data['region']).strip()[:100]
+    if 'age'            in data: w.age             = str(data['age']).strip()[:20]
     if 'abv'            in data: w.abv             = _float_or_none(data['abv'])
-    if 'barcode'        in data: w.barcode         = str(data['barcode']).strip()
+    if 'barcode'        in data: w.barcode         = str(data['barcode']).strip()[:100]
     if 'status'         in data: w.status          = str(data['status'])
     if 'retired'        in data: w.retired         = bool(data['retired'])
     if 'price'          in data: w.price           = _float_or_none(data['price'])
-    if 'store'          in data: w.store           = str(data['store']).strip()
-    if 'notes'          in data: w.notes           = str(data['notes']).strip()
-    if 'nose'           in data: w.nose            = str(data['nose']).strip()
-    if 'palate'         in data: w.palate          = str(data['palate']).strip()
-    if 'finish'         in data: w.finish          = str(data['finish']).strip()
-    if 'flavor_profile' in data: w.flavor_profile  = str(data['flavor_profile']).strip()
+    if 'store'          in data: w.store           = str(data['store']).strip()[:200]
+    if 'notes'          in data: w.notes           = str(data['notes']).strip()[:4000]
+    if 'nose'           in data: w.nose            = str(data['nose']).strip()[:4000]
+    if 'palate'         in data: w.palate          = str(data['palate']).strip()[:4000]
+    if 'finish'         in data: w.finish          = str(data['finish']).strip()[:4000]
+    if 'flavor_profile' in data: w.flavor_profile  = str(data['flavor_profile']).strip()[:50]
     if 'score'          in data: w.score           = _float_or_none(data['score'])
-    if 'wishlist_notes' in data: w.wishlist_notes  = str(data['wishlist_notes']).strip()
+    if 'wishlist_notes' in data: w.wishlist_notes  = str(data['wishlist_notes']).strip()[:4000]
     # Radar axes — accept either a nested dict {"radar": {"smoky": 3, ...}}
     # or flat keys {"radar_smoky": 3, ...}.  Values are clamped to 0–5.
     radar_data = data.get('radar', {})
@@ -809,6 +830,9 @@ def admin_delete_user(uid):
         flash('You cannot delete your own account.', 'error')
         return redirect(url_for('admin_panel'))
     username = u.username
+    # Delete photo files from disk before removing DB records
+    for w in Whisky.query.filter_by(user_id=u.id).all():
+        _delete_all_photos(w)
     # Use synchronize_session='fetch' so the ORM identity map stays consistent
     Whisky.query.filter_by(user_id=u.id).delete(synchronize_session='fetch')
     db.session.delete(u)
@@ -921,6 +945,7 @@ def edit_whisky(wid):
 def delete_whisky(wid):
     w = Whisky.query.filter_by(id=wid, user_id=current_user.id).first_or_404()
     was_wishlist = w.wishlist
+    _delete_all_photos(w)
     db.session.delete(w)
     db.session.commit()
     flash('Deleted.', 'info')
@@ -990,7 +1015,7 @@ def serve_photo(filename):
 
 @csrf.exempt
 @app.route('/api/photo/<int:wid>/<slot>/rotate', methods=['POST'])
-@login_required
+@api_login_required
 def rotate_photo(wid, slot):
     """Rotate a stored photo 90 degrees clockwise and re-save in place."""
     if slot not in ('front', 'back', 'cask', 'barcode'):
@@ -1356,6 +1381,7 @@ def api_delete_whisky(wid):
     w = Whisky.query.filter_by(id=wid, user_id=current_user.id).first()
     if not w:
         return jsonify({'error': 'Whisky not found.'}), 404
+    _delete_all_photos(w)
     db.session.delete(w)
     db.session.commit()
     return jsonify({'data': {'deleted': wid}})
@@ -1390,6 +1416,8 @@ def api_upload_photo(wid, slot):
     if not saved:
         return jsonify({'error': 'Photo processing failed. Check server logs.'}), 500
 
+    # Remove the old file from disk before overwriting the slot
+    _delete_photo_file(getattr(w, f'photo_{slot}'))
     setattr(w, f'photo_{slot}', saved)
     db.session.commit()
     return jsonify({'data': {
@@ -1408,6 +1436,7 @@ def api_delete_photo(wid, slot):
     w = Whisky.query.filter_by(id=wid, user_id=current_user.id).first()
     if not w:
         return jsonify({'error': 'Whisky not found.'}), 404
+    _delete_photo_file(getattr(w, f'photo_{slot}'))
     setattr(w, f'photo_{slot}', None)
     db.session.commit()
     return jsonify({'data': {'slot': slot, 'photo_url': None}})

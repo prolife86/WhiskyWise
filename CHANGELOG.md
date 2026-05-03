@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
  
-## [1.5.0] — 2026-05-02 📱🔐 Mobile API & Security
+## [1.5.0] — 2026-05-03 📱🔐 Mobile API & Security
  
 ### Added
  
@@ -76,15 +76,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `/change-password` is used as the forced-change destination. The updated
   `change_password.html` template accepts a `forced` context variable to
   render the appropriate UI in either forced or voluntary mode.
+### Fixed
+ 
+- **Radar chart not displayed on detail page** — `render_radar_svg()` in
+  read-only mode (`interactive=False`) was ignoring the seven saved
+  `radar_*` columns entirely. Instead it derived the chart shape from
+  `flavor_profile` + `score`, meaning only a single axis ever had a value
+  and it was a rough approximation rather than the actual tasting data. The
+  function now reads `radar_woody` through `radar_fiery` directly for both
+  the data polygon and the dot positions, matching what the edit form shows.
 ### Changed
  
-- **`_fill_whisky_from_form`** — now saves the seven `radar_*` fields from
-  the web form, so the interactive radar chart on the Add / Edit pages is
-  fully persistent for the first time.
+- **`_fill_whisky`** — now saves the seven `radar_*` fields from the web
+  form, so the interactive radar chart on the Add / Edit pages is fully
+  persistent for the first time.
 - **`_whisky_to_dict`** — serialises all whisky fields including the new
   `radar` nested object and correctly resolves photo filenames to relative
   URLs via the existing `serve_photo` route.
-- **`ALLOWED_EXTENSIONS`** — no change; gif remains excluded.
 ### Security
  
 - **`api_login_required` decorator** — API routes use a dedicated decorator

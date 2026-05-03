@@ -16,63 +16,6 @@ Track your whisky collection, log tasting notes, and analyze flavor profiles —
 * 📷 Barcode scanning (camera-based)
 * 👥 Multi-user support
 * 📝 Wishlist tracking
-
-## ❓ Why Whisky Wise?
-
-* No cloud lock-in — your data stays local
-* Built for whisky (not generic note apps)
-* Fast, lightweight, and self-hosted
-
-## 🚀 Getting Started
-
-WhiskyWise can be installed in several ways depending on your setup. Pick the one that fits your environment.
-
----
-
-### 🏠 Home Assistant Add-on *(New in v1.2.1)*
-
-The easiest way to run WhiskyWise if you already have a Home Assistant instance. No Docker commands, no compose files required.
-
-**Prerequisites:** Home Assistant OS or Supervised installation.
-
-1. Go to **Settings → Add-ons**
-2. Click **⋮** (top-right) → **Repositories**
-3. Paste in the repository URL and click **Add**:
-   ```
-   https://github.com/prolife86/WhiskyWise
-   ```
-4. Find **WhiskyWise** in the add-on list and click **Install**
-5. Open the **Configuration** tab and set your `secret_key`
-6. Go to the **Info** tab and click **Start**
-
-All data is stored in the add-on's persistent `/data` volume — your collection and photos survive restarts and updates.
-
-> See [`whiskywise/DOCS.md`](whiskywise/DOCS.md) for full configuration options.
-
----
-
-### 🐳 Docker Compose *(Recommended for standalone installs)*
-
-The most reliable way to run WhiskyWise outside of Home Assistant. All dependencies are perfectly configured out of the box.
-
-# 🥃 Whisky Wise - *Your Personal Spirits Guide*
-
-Track your whisky collection, log tasting notes, and analyze flavor profiles — all in a self-hosted web app.
-
-## ✨ Features
-
-* 📝 Tasting journal (Nose, Palate, Finish)
-* ⭐ 10-point rating system
-* 🧠 Flavor profiles (13 presets + radar chart visualization)
-* 🗂 Collection tracking (Stashed, Open, Finished)
-* 📸 Photo storage (labels, bottle, barcode)
-* 💰 Purchase tracking (price, store, retired)
-* 🔍 Search & filtering (name, distillery, barcode, flavor, score)
-* 📊 Top 10 animated chart
-* 📦 CSV export (full data ownership)
-* 📷 Barcode scanning (camera-based)
-* 👥 Multi-user support
-* 📝 Wishlist tracking
 * 📱 REST API for mobile and third-party clients *(New in v1.5.0)*
 
 ## ❓ Why Whisky Wise?

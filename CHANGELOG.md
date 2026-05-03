@@ -4,6 +4,57 @@ All notable changes to WhiskyWise are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
+
+## [1.5.1] — 2026-05-03 🏷️ Dominant Flavours & House-keeping
+
+### Added
+
+- **Three new dominant flavour options** — `Mixed`, `Undefinable`, and `Complicated`
+  join the existing 13 presets, bringing the total to 16. Because not every dram
+  fits neatly into a single box — and some actively resist the attempt.
+
+### Changed
+
+- **"Flavor Profile" renamed to "Dominant Flavour"** everywhere in the UI, API
+  response payloads, CSV export headers, and inline documentation. The underlying
+  database column (`flavor_profile`) and API query parameter (`flavor`) are
+  unchanged for backwards compatibility.
+- **Dominant flavour tag now capitalised** in the collection list and whisky detail
+  views — `smoky` → `Smoky`, `complicated` → `Complicated`, etc.
+- **`config.yaml` version field** is now managed exclusively by the GitHub Actions
+  `sync-version` job. A `# NOTE:` comment makes this explicit; the field must not
+  be edited by hand.
+
+### Fixed
+
+- **`config.yaml` was stale** — version showed `1.4.3` despite the app shipping
+  as `1.5.0`. Corrected to `1.5.0`; future releases are kept in sync automatically.
+- **`rotate_photo` now accepts Bearer token auth** — the endpoint was decorated
+  with `@login_required` (session only) while the rest of the photo API used
+  `@api_login_required`. Mobile clients can now rotate photos without a browser
+  session.
+- **Orphaned photo files are now deleted from disk** when a whisky is deleted
+  (browser route, API, or admin user-delete), when a photo slot is cleared via
+  `DELETE /api/v1/whisky/<id>/photo/<slot>`, and when a slot is replaced by a
+  new upload. Previously deleted photos accumulated indefinitely in `data/uploads/`.
+- **Input length caps on all free-text fields** — `name`, `distillery`, `store`
+  capped at 200 chars; `region` at 100; `age` and `barcode` at 20 and 100
+  respectively; tasting notes (`nose`, `palate`, `finish`, `notes`,
+  `wishlist_notes`) capped at 4 000 chars. Applies to both browser form and
+  JSON API paths. SQLite does not enforce column widths, so the cap now lives
+  in Python.
+
+### Workflow
+
+- **`extract-version` no longer reads `config.yaml`** — the CI job now derives
+  the version from the git tag (`git describe --tags --abbrev=0`) on push and
+  `workflow_dispatch` triggers, and from the release tag on `release` events.
+  `config.yaml` is a write-only destination for the HA supervisor; it is no
+  longer a source of truth for any part of the build pipeline.
+- `fetch-depth: 0` added to the `extract-version` checkout step so that
+  `git describe` can see the full tag history.
+
+---
  
 ## [1.5.0] — 2026-05-03 📱🔐 Mobile API & Security
  

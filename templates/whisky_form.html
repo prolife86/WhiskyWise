@@ -109,12 +109,12 @@
     </div>
   </div>
 
-  <!-- Flavor Profile -->
-  <div class="section-title">Flavor Profile</div>
+  <!-- Dominant Flavour -->
+  <div class="section-title">Dominant Flavour</div>
   <div class="form-group" style="max-width:280px;margin-bottom:1.5rem;">
     <select name="flavor_profile">
-      <option value="">— Select flavor profile —</option>
-      {% for f in flavor_profiles %}
+      <option value="">— Select dominant flavour —</option>
+      {% for f in dominant_flavours %}
       <option value="{{ f }}" {% if whisky and whisky.flavor_profile == f %}selected{% endif %}>{{ f|capitalize }}</option>
       {% endfor %}
     </select>

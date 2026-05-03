@@ -65,10 +65,13 @@ MIN_PASSWORD_LEN = 8  # enforced everywhere a password is set or changed
 # Fix 1: Pillow decompression bomb guard (40 MP cap)
 Image.MAX_IMAGE_PIXELS = 40_000_000
 
-FLAVOR_PROFILES = [
+DOMINANT_FLAVOURS = [
+    # Core profiles (alphabetical)
     'floral', 'fresh', 'fruity', 'malty', 'medicinal',
     'oily', 'peaty', 'smoky', 'spicy', 'sweet',
     'vanilla', 'vegetative', 'woody',
+    # Catch-all profiles
+    'mixed', 'undefinable', 'complicated',
 ]
 
 db = SQLAlchemy(app)
@@ -91,7 +94,7 @@ csrf = CSRFProtect(app)
 _DUMMY_HASH = generate_password_hash('__dummy__')
 
 def render_radar_svg(whisky, interactive=False):
-    """Return an inline SVG radar chart for a whisky's flavor profile.
+    """Return an inline SVG radar chart for a whisky's dominant flavour profile.
 
     The chart plots the 7 WhiskyWise flavor axes used by the form.
     When *whisky* is None (e.g. the new-whisky form) an empty placeholder
@@ -891,7 +894,7 @@ def collection():
     whiskies = query.order_by(Whisky.score.desc().nullslast(), Whisky.name).all()
     return render_template('collection.html',
                            whiskies=whiskies,
-                           flavor_profiles=FLAVOR_PROFILES,
+                           dominant_flavours=DOMINANT_FLAVOURS,
                            filters=dict(q=q, flavor=flavor, min_score=min_score,
                                         max_price=max_price, status=status_filter))
 
@@ -917,7 +920,7 @@ def new_whisky():
         db.session.commit()
         flash('Whisky added!', 'success')
         return redirect(url_for('whisky_detail', wid=w.id))
-    return render_template('whisky_form.html', whisky=None, flavor_profiles=FLAVOR_PROFILES)
+    return render_template('whisky_form.html', whisky=None, dominant_flavours=DOMINANT_FLAVOURS)
 
 
 @app.route('/whisky/<int:wid>')
@@ -937,7 +940,7 @@ def edit_whisky(wid):
         db.session.commit()
         flash('Saved!', 'success')
         return redirect(url_for('whisky_detail', wid=w.id))
-    return render_template('whisky_form.html', whisky=w, flavor_profiles=FLAVOR_PROFILES)
+    return render_template('whisky_form.html', whisky=w, dominant_flavours=DOMINANT_FLAVOURS)
 
 
 @app.route('/whisky/<int:wid>/delete', methods=['POST'])
@@ -1055,7 +1058,7 @@ def export_csv():
     writer = csv.writer(si)
     writer.writerow(['Name', 'Distillery', 'Region', 'Age', 'ABV', 'Barcode',
                      'Status', 'Retired', 'Price', 'Store',
-                     'Flavor Profile', 'Score',
+                     'Dominant Flavour', 'Score',
                      'Nose', 'Palate', 'Finish', 'Notes', 'Added'])
     for w in whiskies:
         writer.writerow([
@@ -1198,7 +1201,7 @@ def api_stats():
         'stashed':        Whisky.query.filter_by(user_id=current_user.id, status='stashed', wishlist=False).count(),
         'wishlist_count': Whisky.query.filter_by(user_id=current_user.id, wishlist=True).count(),
         'top10':          [_whisky_to_dict(w) for w in top10],
-        'flavor_profiles': FLAVOR_PROFILES,
+        'dominant_flavours': DOMINANT_FLAVOURS,
     }})
 
 
@@ -1211,7 +1214,7 @@ def api_collection():
 
     Optional query parameters mirror the web collection filters:
         q           — free-text search (name, distillery, barcode, region)
-        flavor      — exact flavor_profile match
+        flavor      — exact dominant flavour match (see /api/v1/stats for full list)
         min_score   — float, inclusive lower bound on score
         max_price   — float, inclusive upper bound on price
         status      — 'open' | 'stashed' | 'retired'

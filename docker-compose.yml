@@ -9,6 +9,12 @@ services:
     volumes:
       - whiskywise_data:/data
     environment:
+# REQUIRED: Change this before starting the container.
+# This key signs all user sessions — anyone who knows it can forge a valid
+# session cookie and log in as any user without a password. A random 32-byte
+# hex string works well:  python3 -c "import secrets; print(secrets.token_hex(32))"
+# If you leave this placeholder in place, the app will generate a random key
+# at startup instead, which means every container restart logs everyone out.
       - SECRET_KEY=change-this-to-a-long-random-secret
       - DATABASE_PATH=/data/db/whiskywise.db
       - UPLOAD_FOLDER=/data/uploads

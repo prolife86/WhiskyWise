@@ -5,6 +5,125 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
  
+## [1.5.0] — 2026-05-02 📱🔐 Mobile API & Security
+ 
+### Added
+ 
+- **Mobile / third-party JSON API** — a full REST API has been added to
+  `app.py`, enabling Android, iOS, or any HTTP client to interact with
+  WhiskyWise without a browser. All endpoints return `{"data": ...}` on
+  success and `{"error": "..."}` on failure.
+- **API token authentication** — a new `ApiToken` database model stores
+  personal access tokens as SHA-256 hashes (the plain-text value is shown
+  exactly once at creation and never persisted). Tokens are passed via an
+  `Authorization: Bearer <token>` header. Session-cookie auth continues to
+  work unchanged for browser callers. New token management endpoints:
+  - `POST /api/auth/token` — exchange username + password for a Bearer token.
+  - `GET /api/auth/tokens` — list your tokens (metadata only; no secrets returned).
+  - `DELETE /api/auth/token/<id>` — revoke a token.
+- **Collection & wishlist API endpoints:**
+  - `GET /api/v1/collection` — list collection with optional filtering
+    (`q`, `flavor`, `min_score`, `max_price`, `status`) and pagination
+    (`limit`, `offset`).
+  - `GET /api/v1/wishlist` — list wishlist.
+  - `POST /api/v1/wishlist` — create a wishlist item.
+  - `PUT /api/v1/wishlist/<id>` — update a wishlist item (partial update).
+  - `GET /api/v1/stats` — dashboard counts (total, open, stashed, wishlist)
+    plus the top-10 scored whiskies and the full flavour profile list.
+- **Whisky CRUD API endpoints:**
+  - `GET /api/v1/whisky/<id>` — full detail for a single whisky, including
+    all tasting notes, photo URLs, radar values, and timestamps.
+  - `POST /api/v1/whisky` — create a collection entry. Only `name` is
+    required; all other fields are optional. Photos are uploaded separately.
+  - `PUT /api/v1/whisky/<id>` — partial update; only fields present in the
+    request body are changed. Send `null` to explicitly clear a field.
+  - `DELETE /api/v1/whisky/<id>` — delete a whisky (collection or wishlist).
+- **Photo management API endpoints:**
+  - `POST /api/v1/whisky/<id>/photo/<slot>` — upload or replace a photo via
+    multipart form-data (`photo` field). Accepted formats: jpg, jpeg, png, webp.
+    `slot` must be one of `front`, `back`, `cask`, `barcode`.
+  - `DELETE /api/v1/whisky/<id>/photo/<slot>` — remove a photo (clears the
+    slot; does not delete the file on disk).
+- **Radar chart axes persisted to database** — the seven flavour radar axes
+  (`woody`, `smoky`, `cereal`, `floral`, `fruity`, `medicinal`, `fiery`) are
+  now stored as dedicated integer columns on the `Whisky` model (each 0–5,
+  defaulting to 0). Previously the interactive radar chart wrote values to
+  the form but they were never saved. Existing databases are auto-migrated on
+  first boot via `db.create_all()` with no data loss.
+- **Radar axes exposed in the API** — every whisky returned by the API now
+  includes a `radar` object:
+  ```json
+  "radar": {
+    "woody": 2, "smoky": 4, "cereal": 1,
+    "floral": 0, "fruity": 3, "medicinal": 5, "fiery": 2
+  }
+  ```
+  The `POST /api/v1/whisky` and `PUT /api/v1/whisky/<id>` endpoints accept
+  radar values in either a nested dict (`{"radar": {"smoky": 4}}`) or flat
+  keys (`{"radar_smoky": 4}`). Values are clamped to 0–5 server-side.
+- **Minimum password length of 8 characters** — all three password-setting
+  paths (self-service change, admin create user, admin reset password) now
+  enforce a minimum length of 8 characters, up from 6. A single
+  `MIN_PASSWORD_LEN = 8` constant controls all three locations.
+- **Forced password change on first login** — if a user logs in with the
+  default password (`whiskywise`), a `must_change_password` flag is set in
+  their session and a `before_request` hook redirects every subsequent
+  request to `/change-password` until they comply. The change-password page
+  in forced mode omits the "Current Password" field (redundant given we
+  already know it), blocks reuse of the default password, and hides the
+  Cancel button so the user cannot bypass the prompt.
+- **`/change-password` route** — a dedicated `GET`/`POST` route at
+  `/change-password` is used as the forced-change destination. The updated
+  `change_password.html` template accepts a `forced` context variable to
+  render the appropriate UI in either forced or voluntary mode.
+### Changed
+ 
+- **`_fill_whisky_from_form`** — now saves the seven `radar_*` fields from
+  the web form, so the interactive radar chart on the Add / Edit pages is
+  fully persistent for the first time.
+- **`_whisky_to_dict`** — serialises all whisky fields including the new
+  `radar` nested object and correctly resolves photo filenames to relative
+  URLs via the existing `serve_photo` route.
+- **`ALLOWED_EXTENSIONS`** — no change; gif remains excluded.
+### Security
+ 
+- **`api_login_required` decorator** — API routes use a dedicated decorator
+  that accepts Bearer tokens or session cookies and returns a JSON `401`
+  (not an HTML redirect) on failure, making error handling straightforward
+  for mobile clients.
+- **CSRF exemption for API routes** — all `POST`, `PUT` and `DELETE` API
+  endpoints are decorated with `@csrf.exempt`; they are protected instead by
+  Bearer token auth which provides equivalent request forgery protection for
+  non-browser clients.
+- **Rate limiting on token creation** — `POST /api/auth/token` is limited to
+  10 requests per minute per IP via the existing Flask-Limiter instance,
+  preventing brute-force credential stuffing against the token endpoint.
+- **Token hash storage** — raw token values are never written to the
+  database. Only the SHA-256 digest is stored; a database leak does not
+  expose live credentials.
+### Notes
+ 
+- **Database migration** — `db.create_all()` will add the seven new
+  `radar_*` columns and the `api_token` table automatically on first boot.
+  For existing databases managed outside of `db.create_all()` (e.g. Alembic),
+  apply the following manually:
+  ```sql
+  ALTER TABLE whisky ADD COLUMN radar_woody     INTEGER DEFAULT 0;
+  ALTER TABLE whisky ADD COLUMN radar_smoky     INTEGER DEFAULT 0;
+  ALTER TABLE whisky ADD COLUMN radar_cereal    INTEGER DEFAULT 0;
+  ALTER TABLE whisky ADD COLUMN radar_floral    INTEGER DEFAULT 0;
+  ALTER TABLE whisky ADD COLUMN radar_fruity    INTEGER DEFAULT 0;
+  ALTER TABLE whisky ADD COLUMN radar_medicinal INTEGER DEFAULT 0;
+  ALTER TABLE whisky ADD COLUMN radar_fiery     INTEGER DEFAULT 0;
+  ```
+- Only `app.py` and `templates/change_password.html` were changed. All other
+  templates, static files, Docker configuration, and the Home Assistant
+  add-on are unaffected.
+- All existing data, photos, and passwords are preserved.
+- `APP_VERSION` bumped to `1.5.0`.
+
+---
+
 ## [1.4.3] - 2026-05-01
 
 ### Fixed

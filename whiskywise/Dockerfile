@@ -20,6 +20,11 @@ RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 COPY app.py .
 COPY templates/ templates/
 
+# config.yaml is the single source of truth for the add-on version.
+# run.sh parses it at startup and exports APP_VERSION so the Flask app
+# can read it via os.environ.get('APP_VERSION', 'dev').
+COPY config.yaml /app/config.yaml
+
 # Copy HA entrypoint
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh

@@ -18,7 +18,7 @@
     <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;align-items:center;">
       {% if not w.wishlist %}<span class="status-pill status-{{ w.status }}">{{ w.status }}</span>{% endif %}
       {% if w.retired %}<span class="status-pill status-retired">🚫 Retired</span>{% endif %}
-      {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile }}</span>{% endif %}
+      {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile|capitalize }}</span>{% endif %}
       {% if w.age  %}<span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">{{ w.age }} yr</span>{% endif %}
       {% if w.abv  %}<span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">{{ w.abv }}%</span>{% endif %}
     </div>

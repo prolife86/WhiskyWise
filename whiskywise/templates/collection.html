@@ -16,8 +16,8 @@
   </div>
   <div class="filter-row">
     <select name="flavor" onchange="this.form.submit()">
-      <option value="">All flavors</option>
-      {% for f in flavor_profiles %}
+      <option value="">All dominant flavours</option>
+      {% for f in dominant_flavours %}
       <option value="{{ f }}" {% if filters.flavor == f %}selected{% endif %}>{{ f|capitalize }}</option>
       {% endfor %}
     </select>
@@ -62,7 +62,7 @@
       <div class="whisky-card-distillery">{{ w.distillery }}{% if w.region %} · {{ w.region }}{% endif %}</div>
     {% endif %}
     <div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem;align-items:center;">
-      {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile }}</span>{% endif %}
+      {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile|capitalize }}</span>{% endif %}
       {% if w.retired %}<span class="status-pill status-retired">retired</span>{% endif %}
     </div>
     <div class="whisky-card-footer">

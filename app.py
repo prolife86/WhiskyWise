@@ -1433,7 +1433,7 @@ def api_upload_photo(wid, slot):
 @app.route('/api/v1/whisky/<int:wid>/photo/<slot>', methods=['DELETE'])
 @api_login_required
 def api_delete_photo(wid, slot):
-    """Remove a photo from a whisky (sets the slot to null; does not delete the file)."""
+    """Remove a photo from a whisky, deleting the file from disk and clearing the DB slot."""
     if slot not in ('front', 'back', 'cask', 'barcode'):
         return jsonify({'error': "slot must be one of: front, back, cask, barcode"}), 400
     w = Whisky.query.filter_by(id=wid, user_id=current_user.id).first()

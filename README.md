@@ -75,15 +75,8 @@ http://localhost:5000
 
 ### 📦 UnRaid
 
-Download the `my-WhiskyWise.xml` and adjust the following lines:
-
-* \#6 (Network)
-* \#7 (IP Address)
-* \#31 (Secret Key)
-
-Upload the adjusted `my-WhiskyWise.xml` to your flash drive via: **Main → browse icon in front of the Flash drive → config → plugins → dockerMan → templates-user**, then upload and reboot.
-You can also enter this information manually into UnRaid without rebooting.
-*(The icon can be added via the advanced options.)*
+WhiskyWise is available on the Unraid Community Applications (CA) store since version 1.5.0.
+Simply search for WhiskyWise in the CA store and install it directly from there.
 
 ---
 

@@ -27,7 +27,7 @@ Track your whisky collection, log tasting notes, and analyze flavor profiles —
 
 ## 📱 Android Companion App *(New)*
 
-A native Android app is available for WhiskyWise. It connects to your self-hosted server via the REST API and requires server ≥ 1.5.2.
+A native Android app is available for WhiskyWise. It connects to your self-hosted server via the REST API and requires server ≥ 1.5.4.
 
 **→ [WhiskyWise Android App](https://github.com/prolife86/WhiskyWise-app)**
 

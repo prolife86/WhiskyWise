@@ -574,28 +574,45 @@ def _whisky_to_dict(w):
     }
 
 
+def _str_or_none(val, maxlen):
+    """Return a stripped, length-capped string, or None if val is None/empty.
+
+    Prevents str(None) = 'None' being written to the DB when a mobile client
+    explicitly sends null to clear a field.
+    """
+    if val is None:
+        return None
+    return str(val).strip()[:maxlen] or None
+
+
 def _fill_whisky_from_json(w, data):
-    """Populate whisky fields from a parsed JSON dict (mobile POST/PUT body)."""
+    """Populate whisky fields from a parsed JSON dict (mobile POST/PUT body).
+
+    Fields present in *data* are updated; absent fields are left unchanged.
+    A field sent as JSON ``null`` is treated as an explicit clear (set to None
+    in the DB), so mobile clients can erase optional fields by including the key
+    with a null value rather than omitting it entirely.
+    """
     if 'name'           in data: w.name           = str(data['name']).strip()[:200]
-    if 'distillery'     in data: w.distillery      = str(data['distillery']).strip()[:200]
-    if 'region'         in data: w.region          = str(data['region']).strip()[:100]
-    if 'age'            in data: w.age             = str(data['age']).strip()[:20]
+    if 'distillery'     in data: w.distillery      = _str_or_none(data['distillery'], 200)
+    if 'region'         in data: w.region          = _str_or_none(data['region'],      100)
+    if 'age'            in data: w.age             = _str_or_none(data['age'],          20)
     if 'abv'            in data: w.abv             = _float_or_none(data['abv'])
-    if 'barcode'        in data: w.barcode         = str(data['barcode']).strip()[:100]
+    if 'barcode'        in data: w.barcode         = _str_or_none(data['barcode'],     100)
     _VALID_STATUSES = {'stashed', 'open', 'finished'}
     if 'status' in data:
         raw_status = str(data['status'])
         w.status = raw_status if raw_status in _VALID_STATUSES else 'stashed'
     if 'retired'        in data: w.retired         = bool(data['retired'])
     if 'price'          in data: w.price           = _float_or_none(data['price'])
-    if 'store'          in data: w.store           = str(data['store']).strip()[:200]
-    if 'notes'          in data: w.notes           = str(data['notes']).strip()[:4000]
-    if 'nose'           in data: w.nose            = str(data['nose']).strip()[:4000]
-    if 'palate'         in data: w.palate          = str(data['palate']).strip()[:4000]
-    if 'finish'         in data: w.finish          = str(data['finish']).strip()[:4000]
-    if 'flavor_profile' in data: w.flavor_profile  = str(data['flavor_profile']).strip()[:50]
+    if 'store'          in data: w.store           = _str_or_none(data['store'],       200)
+    if 'notes'          in data: w.notes           = _str_or_none(data['notes'],      4000)
+    if 'nose'           in data: w.nose            = _str_or_none(data['nose'],       4000)
+    if 'palate'         in data: w.palate          = _str_or_none(data['palate'],     4000)
+    if 'finish'         in data: w.finish          = _str_or_none(data['finish'],     4000)
+    if 'flavor_profile' in data: w.flavor_profile  = _str_or_none(data['flavor_profile'], 50)
     if 'score'          in data: w.score           = _float_or_none(data['score'])
-    if 'wishlist_notes' in data: w.wishlist_notes  = str(data['wishlist_notes']).strip()[:4000]
+    if 'wishlist_notes' in data: w.wishlist_notes  = _str_or_none(data['wishlist_notes'], 4000)
     # Radar axes — accept either a nested dict {"radar": {"smoky": 3, ...}}
     # or flat keys {"radar_smoky": 3, ...}.  Values are clamped to 0–5.
     radar_data = data.get('radar', {})

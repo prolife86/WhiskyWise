@@ -5,6 +5,62 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.3] — 2026-05-06 🤫 The Quiet Dram
+
+### Fixed
+
+- **Score slider no longer defaults to 0 on unscored whiskies** — when adding a
+  new bottle the range slider was rendering at `0`, leaving the hidden score input
+  and the visual display out of sync. Moving the slider even slightly would then
+  commit `0.0` as the score without the user intending to. The slider now parks
+  at the neutral midpoint (`5`) while the hidden input stays empty; a score is
+  only submitted when the user deliberately moves the slider or types a value.
+
+- **Photo replaced via the API no longer deletes the old file before the DB
+  commit succeeds** — `POST /api/v1/whisky/<id>/photo/<slot>` was deleting the
+  existing photo from disk, then writing the new filename to the database. If the
+  commit failed (e.g. a brief DB lock), the old photo was gone and the new
+  filename was never persisted, leaving a broken slot with no recovery path. The
+  old file is now held until after a successful commit; if the commit fails the
+  newly-written file is cleaned up instead and a `500` with a clear error message
+  is returned.
+
+- **Arbitrary strings can no longer be stored in the `status` field** — the form
+  and JSON API paths both accepted any value for `status` without validation.
+  Both `_fill_whisky` and `_fill_whisky_from_json` now reject values outside
+  `{'stashed', 'open', 'finished'}`, silently falling back to `'stashed'`.
+  Existing data is unaffected.
+
+- **`_init_db` startup migration no longer kills the process on failure** — the
+  `ALTER TABLE` migration for the `is_admin` column was wrapped only in an outer
+  `finally` block, meaning any exception (e.g. a locked DB or a permissions
+  error) propagated uncaught and crashed the container before it could serve a
+  single request. The migration is now wrapped in its own inner `try/except`;
+  failures emit a `[WhiskyWise] WARNING:` log line and allow startup to continue.
+
+### Security
+
+- **SRI integrity hash added to ZXing CDN script** — the `@zxing/browser@0.1.5`
+  bundle was loaded from `unpkg.com` with no `integrity` attribute. A compromised
+  or tampered CDN response would have executed arbitrary JavaScript in users'
+  browsers. The `integrity="sha384-..."` attribute is now present; browsers will
+  refuse to execute the script if the hash doesn't match.
+
+### Documentation
+
+- **`docker-compose.yml` — `SESSION_COOKIE_SECURE` guidance added** — a comment
+  block now explains that `SESSION_COOKIE_SECURE` and `REMEMBER_COOKIE_SECURE`
+  are intentionally absent (safe for LAN-only deploys) and documents the exact
+  environment variables to add when running behind an HTTPS reverse proxy.
+
+- **`docker-compose.yml` — version now read from `whiskywise/config.yaml`** —
+  `APP_VERSION` is no longer a static placeholder. The `build.args` block now
+  uses the same `grep`/`sed` pipeline as `run.sh` to extract the version at
+  build time, so standalone Docker builds always report the correct version in
+  the UI without any manual edits.
+
+---
+
 ## [1.5.2] — 2026-05-06 📸 Photos Actually Work on Mobile Now
  
 ### Fixed

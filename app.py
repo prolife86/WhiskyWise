@@ -445,7 +445,9 @@ def _fill_whisky(w, form):
     w.age            = form.get('age', '').strip()[:20]
     w.abv            = _float_or_none(form.get('abv'))
     w.barcode        = form.get('barcode', '').strip()[:100]
-    w.status         = form.get('status', 'stashed')
+    _VALID_STATUSES = {'stashed', 'open', 'finished'}
+    raw_status = form.get('status', 'stashed')
+    w.status         = raw_status if raw_status in _VALID_STATUSES else 'stashed'
     w.retired        = form.get('retired') == 'on'
     w.price          = _float_or_none(form.get('price'))
     w.store          = form.get('store', '').strip()[:200]
@@ -580,7 +582,10 @@ def _fill_whisky_from_json(w, data):
     if 'age'            in data: w.age             = str(data['age']).strip()[:20]
     if 'abv'            in data: w.abv             = _float_or_none(data['abv'])
     if 'barcode'        in data: w.barcode         = str(data['barcode']).strip()[:100]
-    if 'status'         in data: w.status          = str(data['status'])
+    _VALID_STATUSES = {'stashed', 'open', 'finished'}
+    if 'status' in data:
+        raw_status = str(data['status'])
+        w.status = raw_status if raw_status in _VALID_STATUSES else 'stashed'
     if 'retired'        in data: w.retired         = bool(data['retired'])
     if 'price'          in data: w.price           = _float_or_none(data['price'])
     if 'store'          in data: w.store           = str(data['store']).strip()[:200]
@@ -641,11 +646,17 @@ def _init_db():
         conn = db.engine.raw_connection()
         try:
             cur = conn.cursor()
-            cols = [row[1] for row in cur.execute('PRAGMA table_info("user")').fetchall()]
-            if 'is_admin' not in cols:
-                cur.execute('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0')
-                conn.commit()
-                print("[WhiskyWise] Migrated DB: added is_admin column.")
+            try:
+                cols = [row[1] for row in cur.execute('PRAGMA table_info("user")').fetchall()]
+                if 'is_admin' not in cols:
+                    cur.execute('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0')
+                    conn.commit()
+                    print("[WhiskyWise] Migrated DB: added is_admin column.")
+            except Exception as exc:
+                conn.rollback()
+                print(f"[WhiskyWise] WARNING: DB migration check failed — "
+                      f"the app may still work but please verify the 'user' table schema. "
+                      f"Error: {exc}")
         finally:
             conn.close()
         db.session.expire_all()
@@ -1419,10 +1430,20 @@ def api_upload_photo(wid, slot):
     if not saved:
         return jsonify({'error': 'Photo processing failed. Check server logs.'}), 500
 
-    # Remove the old file from disk before overwriting the slot
-    _delete_photo_file(getattr(w, f'photo_{slot}'))
+    # Hold onto the old filename so we can delete it from disk *after* the DB
+    # commit succeeds.  Deleting before commit means a failed commit would lose
+    # the old file with no record of the new one.
+    old_filename = getattr(w, f'photo_{slot}')
     setattr(w, f'photo_{slot}', saved)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        _delete_photo_file(saved)   # clean up the newly-written file
+        app.logger.error("DB commit failed during photo upload: %s", exc)
+        return jsonify({'error': 'Could not save photo reference. Check server logs.'}), 500
+    # Commit succeeded — now safe to remove the old file
+    _delete_photo_file(old_filename)
     return jsonify({'data': {
         'slot':      slot,
         'photo_url': url_for('serve_photo', filename=saved, _external=False),

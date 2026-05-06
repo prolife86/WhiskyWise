@@ -70,12 +70,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   are intentionally absent (safe for LAN-only deploys) and documents the exact
   environment variables to add when running behind an HTTPS reverse proxy.
 
-- **`docker-compose.yml` — version now read from `whiskywise/config.yaml`** —
-  `APP_VERSION` is no longer a static placeholder. The `build.args` block now
-  uses the same `grep`/`sed` pipeline as `run.sh` to extract the version at
-  build time, so standalone Docker builds always report the correct version in
-  the UI without any manual edits.
-
 ---
 
 ## [1.5.2] — 2026-05-06 📸 Photos Actually Work on Mobile Now

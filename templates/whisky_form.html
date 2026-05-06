@@ -91,7 +91,7 @@
     </div>
     <input type="range" id="score-slider" class="score-slider"
            min="0" max="10" step="0.1"
-           value="{{ whisky.score if whisky and whisky.score is not none else 0 }}"
+           value="{{ whisky.score if whisky and whisky.score is not none else 5 }}"
            oninput="onSlider(this.value)">
     <div class="score-ticks">
       <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
@@ -297,7 +297,11 @@ function setScore(v) {
   scoreManual.value        = num.toFixed(1);
 }
 
-function onSlider(val) { setScore(val); }
+function onSlider(val) {
+  // Moving the slider always counts as setting a score — even on a previously
+  // unscored whisky where the hidden input was empty.
+  setScore(val);
+}
 
 function onManual(val) {
   const v = parseFloat(val);
@@ -314,13 +318,20 @@ function clearScore() {
   scoreManual.value        = '';
 }
 
-// Initialise from server value
+// Initialise from server value.
+// If no score is set (scoreHidden is empty), leave display as '—' and keep
+// the slider parked at its visual midpoint (5) so it doesn't misleadingly
+// show 0.  The hidden input stays empty so no score is submitted unless
+// the user actually moves the slider or types a value.
 (function() {
   const init = parseFloat(scoreHidden.value);
   if (!isNaN(init)) {
     scoreDisplay.textContent = init.toFixed(1);
     scoreSlider.value        = init.toFixed(1);
     scoreManual.value        = init.toFixed(1);
+  } else {
+    // No score yet — park slider at midpoint without committing any value
+    scoreSlider.value = 5;
   }
 })();
 

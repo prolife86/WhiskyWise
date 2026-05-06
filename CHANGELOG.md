@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.2] — 2026-05-06 📸 Photos Actually Work on Mobile Now
+ 
+### Fixed
+ 
+- **Photos not loading in the Android app** — `GET /api/photo/<filename>` was
+  decorated with `@login_required`, which only accepts browser session cookies.
+  Mobile clients send `Authorization: Bearer <token>` instead, which
+  Flask-Login's standard decorator silently ignores — redirecting to `/login`
+  and returning an HTML page in place of the image. Changed the decorator to
+  `@api_login_required`, which accepts both Bearer tokens and session cookies.
+  Browser behaviour is unchanged; mobile clients now receive the actual photo.
+  Note: `rotate_photo` received the same fix in 1.5.1. `serve_photo` was
+  the last remaining endpoint still using the wrong decorator.
+
+---
+
 ## [1.5.1] — 2026-05-03 🏷️ Dominant Flavours & House-keeping
 
 ### Added

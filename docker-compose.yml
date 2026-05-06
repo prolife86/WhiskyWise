@@ -2,13 +2,7 @@ version: '3.8'
 
 services:
   whiskywise:
-    build:
-      context: .
-      args:
-        # APP_VERSION is read from whiskywise/config.yaml at build time so the
-        # version shown in the UI always matches the released add-on version.
-        # The grep/sed pipeline mirrors what run.sh does at runtime.
-        APP_VERSION: ${APP_VERSION:-$(grep '^version:' whiskywise/config.yaml | sed 's/version:[[:space:]]*"\?\([^"]*\)"\?/\1/')}
+    build: .
     container_name: whiskywise
     ports:
       - "5000:5000"

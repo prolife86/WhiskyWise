@@ -384,7 +384,7 @@ main.content { flex:1; max-width:1100px; margin:0 auto; padding:1.5rem 1rem 4rem
 </div>
 
 <!-- ZXing browser barcode library — UMD build works on iOS Safari, Android, Firefox -->
-<script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js" integrity="sha384-rRoXxn2yHlrZYB587Ki9RO1tONhLdM6XfORg7Rw4uwH4/Fh/5nP7IUX91bkaKUgs" crossorigin="anonymous"></script>
 <script>
 // The UMD build exposes ZXingBrowser; alias to ZXing for our scanner code
 if (typeof ZXingBrowser !== 'undefined') { window.ZXing = ZXingBrowser; }

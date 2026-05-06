@@ -17,12 +17,19 @@ Track your whisky collection, log tasting notes, and analyze flavor profiles —
 * 👥 Multi-user support
 * 📝 Wishlist tracking
 * 📱 REST API for mobile and third-party clients *(New in v1.5.0)*
+* 🤖 Native Android companion app *(New)*
 
 ## ❓ Why Whisky Wise?
 
 * No cloud lock-in — your data stays local
 * Built for whisky (not generic note apps)
 * Fast, lightweight, and self-hosted
+
+## 📱 Android Companion App *(New)*
+
+A native Android app is available for WhiskyWise. It connects to your self-hosted server via the REST API and requires server ≥ 1.5.2.
+
+**→ [WhiskyWise Android App](https://github.com/prolife86/WhiskyWise-app)**
 
 ## 🚀 Getting Started
 
@@ -206,6 +213,8 @@ Authorization: Bearer a3f9...
 | `DELETE` | `/api/v1/whisky/<id>` | Delete a whisky |
 | `POST` | `/api/v1/whisky/<id>/photo/<slot>` | Upload a photo (`front`, `back`, `cask`, `barcode`) |
 | `DELETE` | `/api/v1/whisky/<id>/photo/<slot>` | Remove a photo |
+| `POST` | `/api/photo/<id>/<slot>/rotate` | Rotate a saved photo 90° clockwise |
+| `GET` | `/api/photo/<filename>` | Authenticated photo serving |
 
 ### Collection Filters
 
@@ -258,7 +267,7 @@ If the API is unavailable, you can type the barcode manually.
 To use WhiskyWise on your phone while connected to your home network:
 
 1. Find your server's local IP (e.g. `192.168.1.100`)
-2. Open `http://192.168.1.100:5000` on your phone
+2. Open `http://192.168.1.100:5000` on your phone, or connect via the [Android app](https://github.com/prolife86/WhiskyWise-app)
 3. Add to home screen for an app-like experience
 
 > Note: Camera/barcode scanning requires HTTPS or localhost. For LAN HTTPS, consider putting WhiskyWise behind a reverse proxy like Nginx with a local SSL certificate, or use Tailscale.
@@ -284,99 +293,6 @@ Found a bug or want to suggest a feature like "Distillery Maps"?
 ## 🤖 Development Notes
 
 Parts of this project were developed with AI assistance to accelerate development. All code is reviewed and maintained manually.
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-**Prerequisites:** Docker & Docker Compose installed.
-
-```bash
-# 1. Clone / download this folder
-cd whiskywise
-
-# 2. (Recommended) Change the SECRET_KEY in docker-compose.yml
-
-# 3. Build and run
-docker-compose up -d
-
-# 4. Open in your browser
-http://localhost:5000
-```
-
----
-
-### 📦 UnRaid
-
-Download the `my-WhiskyWise.xml` and adjust the following lines:
-
-* \#6 (Network)
-* \#7 (IP Address)
-* \#31 (Secret Key)
-
-Upload the adjusted `my-WhiskyWise.xml` to your flash drive via: **Main → browse icon in front of the Flash drive → config → plugins → dockerMan → templates-user**, then upload and reboot.
-You can also enter this information manually into UnRaid without rebooting.
-*(The icon can be added via the advanced options.)*
-
----
-
-## 🖥️ Configuration (docker-compose.yml)
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `SECRET_KEY` | `change-this-...` | Flask session secret — **must be changed** |
-| `DATABASE_PATH` | `/data/db/whiskywise.db` | SQLite DB path |
-| `UPLOAD_FOLDER` | `/data/uploads` | Photo upload directory |
-
-For Home Assistant users, these are configured via the add-on **Configuration** tab in the HA UI.
-
-## 💿 Data Persistence
-
-All data is stored in a named Docker volume (`whiskywise_data`):
-
-* Database: `/data/db/whiskywise.db` (SQLite)
-* Photos: `/data/uploads/`
-
-To back up your data:
-
-```bash
-docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
-  tar czf /backup/whiskywise-backup.tar.gz /data
-```
-
-To restore:
-
-```bash
-docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
-  tar xzf /backup/whiskywise-backup.tar.gz -C /
-```
-
-> Home Assistant users: your data lives in the add-on's `/data` folder, which HA maps to a persistent volume automatically. Back up via the standard HA backup system.
-
-## 🛠 Advanced Configuration
-
-### Docker Compose Example
-
-If you prefer to integrate WhiskyWise into an existing stack, use this `docker-compose.yml` snippet:
-
-```yaml
-services:
-  whiskywise:
-    image: ghcr.io/prolife86/whiskywise:latest
-    ports:
-      - "5000:5000"
-    volumes:
-      - /mnt/user/appdata/WhiskyWise:/data
-    environment:
-      - SECRET_KEY=change-this-to-a-long-random-secret
-      - DATABASE_PATH=/data/db/whiskywise.db
-      - UPLOAD_FOLDER=/data/uploads
-    restart: unless-stopped
-```
-
-### Volume Persistence
-
-> **Critical:** Always map the data directory to a local volume.
-ained manually.
 
 ## 📜 License
 

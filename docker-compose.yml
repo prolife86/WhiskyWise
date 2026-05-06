@@ -2,7 +2,13 @@ version: '3.8'
 
 services:
   whiskywise:
-    build: .
+    build:
+      context: .
+      args:
+        # APP_VERSION is read from whiskywise/config.yaml at build time so the
+        # version shown in the UI always matches the released add-on version.
+        # The grep/sed pipeline mirrors what run.sh does at runtime.
+        APP_VERSION: ${APP_VERSION:-$(grep '^version:' whiskywise/config.yaml | sed 's/version:[[:space:]]*"\?\([^"]*\)"\?/\1/')}
     container_name: whiskywise
     ports:
       - "5000:5000"
@@ -18,6 +24,15 @@ services:
       - SECRET_KEY=change-this-to-a-long-random-secret
       - DATABASE_PATH=/data/db/whiskywise.db
       - UPLOAD_FOLDER=/data/uploads
+# HTTPS / secure cookies:
+# SESSION_COOKIE_SECURE and REMEMBER_COOKIE_SECURE are intentionally NOT set
+# here because this container is often deployed on a local network without TLS.
+# If you place WhiskyWise behind a reverse proxy that terminates HTTPS (e.g.
+# nginx, Caddy, or a Home Assistant ingress), you should add:
+#   - SESSION_COOKIE_SECURE=true
+#   - REMEMBER_COOKIE_SECURE=true
+# Without these flags, session cookies can be transmitted over plain HTTP,
+# which is acceptable on a trusted LAN but a risk on any internet-facing setup.
     restart: unless-stopped
 
 volumes:

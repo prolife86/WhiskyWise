@@ -994,7 +994,7 @@ def barcode_lookup():
 
 
 @app.route('/api/photo/<path:filename>')
-@login_required
+@api_login_required
 def serve_photo(filename):
     """Serve a photo file. Ownership is enforced by confirming the filename
     exists on a Whisky record that belongs to the current user."""

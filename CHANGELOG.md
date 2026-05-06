@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.4] — 2026-05-06 🧹 The Field-Clearing Fix
+
+### Fixed
+
+- **Clearing optional fields via the Android app now actually saves** — when a
+  user edited a whisky and wiped a field (distillery, region, age, store,
+  barcode, tasting notes, score, price, etc.), the change was silently
+  discarded. Gson's default behaviour omits `null` values from the JSON body;
+  `_fill_whisky_from_json` only updates fields that are present in the payload,
+  so absent keys were skipped and the old value remained in the database. A new
+  `_str_or_none()` helper correctly maps `null` JSON values to SQL `NULL`, and
+  all string fields in `_fill_whisky_from_json` now use it. Mobile clients
+  can clear any optional field by sending the key with a `null` value; omitting
+  the key still leaves the field untouched (partial-update semantics preserved).
+
+---
+
 ## [1.5.3] — 2026-05-06 🤫 The Quiet Dram
 
 ### Fixed

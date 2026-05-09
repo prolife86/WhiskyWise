@@ -8,17 +8,43 @@ permissions:
   contents: read
   issues: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   close-fixed-issues:
     runs-on: ubuntu-latest
     steps:
       - name: Close issues labelled "awaiting release"
-        uses: gcampbell-msft/fixed-pending-release@7fa1b75a0c04bcd4b375110522878e5f6100cff5
+        uses: actions/github-script@v8
         with:
-          label: 'awaiting release'
-          removeLabel: true
-          applyToAll: true
-          message: Fixed in [${releaseTag}](${releaseUrl}).
+          script: |
+            const label = 'awaiting release';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              labels: label,
+              state: 'open',
+              per_page: 100,
+            });
+            const releaseTag = context.payload.release.tag_name;
+            const releaseUrl = context.payload.release.html_url;
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                owner:    context.repo.owner,
+                repo:     context.repo.repo,
+                issue_number: issue.number,
+                body: `Fixed in [${releaseTag}](${releaseUrl}).`,
+              });
+              await github.rest.issues.removeLabel({
+                owner:    context.repo.owner,
+                repo:     context.repo.repo,
+                issue_number: issue.number,
+                name: label,
+              });
+              await github.rest.issues.update({
+                owner:    context.repo.owner,
+                repo:     context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+            }
+            core.info(`Closed ${issues.length} issue(s) labelled "${label}".`);

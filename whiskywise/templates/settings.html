@@ -80,4 +80,110 @@
   </div>
 </div>
 
+<!-- Active Sessions -->
+<div class="card" style="margin-top:1rem;max-width:780px;">
+  <div class="card-header"><h3>🌐 Active Browser Sessions</h3></div>
+  {% if browser_sessions %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.2);">
+          <th class="_sh">IP Address</th>
+          <th class="_sh">Version</th>
+          <th class="_sh">User Agent</th>
+          <th class="_sh">Logged In</th>
+          <th class="_sh">Last Seen</th>
+          <th class="_sh"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in browser_sessions %}
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.08);">
+          <td class="_sd mono">{{ s.origin_ip or '—' }}</td>
+          <td class="_sd mono">
+            {% if s.client_version %}v{{ s.client_version }}{% else %}—{% endif %}
+          </td>
+          <td class="_sd" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;"
+              title="{{ s.user_agent or '' }}">{{ s.user_agent or '—' }}</td>
+          <td class="_sd mono dim">{{ s.created_at.strftime('%d %b %Y %H:%M') }}</td>
+          <td class="_sd mono dim">{{ s.last_seen.strftime('%d %b %Y %H:%M') if s.last_seen else '—' }}</td>
+          <td class="_sd" style="text-align:right;">
+            {% if s.current %}
+            <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--amber-light);">This session</span>
+            {% else %}
+            <form method="POST" action="{{ url_for('settings_revoke_session', sid=s.id) }}"
+                  onsubmit="return confirm('Revoke this session?');" style="display:inline;">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      style="background:rgba(180,50,50,0.1);color:#f08080;border-color:rgba(180,50,50,0.25);font-size:0.75rem;padding:0.2rem 0.6rem;">
+                Revoke
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--ash);font-size:0.88rem;">No active sessions found.</p>
+  {% endif %}
+</div>
+
+<!-- API Tokens -->
+<div class="card" style="margin-top:1rem;max-width:780px;">
+  <div class="card-header"><h3>🔑 API Tokens</h3></div>
+  {% if api_tokens %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.2);">
+          <th class="_sh">Name</th>
+          <th class="_sh">Origin IP</th>
+          <th class="_sh">Version</th>
+          <th class="_sh">Created</th>
+          <th class="_sh">Last Used</th>
+          <th class="_sh"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in api_tokens %}
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.08);">
+          <td class="_sd" style="color:var(--grain-mid);">{{ t.name }}</td>
+          <td class="_sd mono">{{ t.origin_ip or '—' }}</td>
+          <td class="_sd mono">{% if t.client_version %}v{{ t.client_version }}{% else %}—{% endif %}</td>
+          <td class="_sd mono dim">{{ t.created_at.strftime('%d %b %Y %H:%M') }}</td>
+          <td class="_sd mono dim">{{ t.last_used.strftime('%d %b %Y %H:%M') if t.last_used else 'Never' }}</td>
+          <td class="_sd" style="text-align:right;">
+            <form method="POST" action="{{ url_for('settings_revoke_token', tid=t.id) }}"
+                  onsubmit="return confirm('Revoke token &quot;{{ t.name }}&quot;?');" style="display:inline;">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      style="background:rgba(180,50,50,0.1);color:#f08080;border-color:rgba(180,50,50,0.25);font-size:0.75rem;padding:0.2rem 0.6rem;">
+                Revoke
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--ash);font-size:0.88rem;">No API tokens issued yet.</p>
+  {% endif %}
+</div>
+
+<style>
+._sh {
+  font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  color: var(--amber-light); text-transform: uppercase;
+  letter-spacing: 0.05em; text-align: left; padding: 0.45rem 0.65rem;
+}
+._sd { padding: 0.6rem 0.65rem; font-size: 0.83rem; color: var(--grain-mid); vertical-align: middle; }
+.mono { font-family: 'DM Mono', monospace; }
+.dim  { color: var(--ash); }
+</style>
+
 {% endblock %}

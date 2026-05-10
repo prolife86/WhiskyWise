@@ -7,6 +7,7 @@
     <h1 style="color:var(--amber-glow);">👑 Admin Panel</h1>
     <p style="font-size:0.85rem;margin-top:0.2rem;">{{ users|length }} user{{ 's' if users|length != 1 }} registered</p>
   </div>
+  <a href="{{ url_for('admin_sessions') }}" class="btn btn-secondary btn-sm">🔐 Sessions &amp; Tokens</a>
 </div>
 
 <!-- Create new user -->

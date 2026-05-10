@@ -268,7 +268,10 @@ _FORCE_PW_EXEMPT = {'force_change_password', 'logout', 'login',
                     'api_create_wishlist_item', 'api_update_wishlist_item',
                     'api_whisky_detail', 'api_create_whisky', 'api_update_whisky',
                     'api_delete_whisky', 'api_upload_photo', 'api_delete_photo',
-                    'barcode_lookup', 'rotate_photo'}
+                    'barcode_lookup', 'rotate_photo',
+                    'api_list_sessions', 'api_revoke_session',
+                    'admin_sessions', 'admin_revoke_token', 'admin_revoke_session',
+                    'settings_revoke_session', 'settings_revoke_token'}
 
 @app.before_request
 def enforce_password_change():
@@ -282,6 +285,28 @@ def enforce_password_change():
     if request.headers.get('Authorization', '').startswith('Bearer '):
         return
     return redirect(url_for('force_change_password'))
+
+
+@app.before_request
+def update_browser_session_activity():
+    """Keep browser session last_seen fresh on every authenticated page load."""
+    sid = session.get('browser_session_id')
+    if not sid or not current_user.is_authenticated:
+        return
+    # Only update on real page requests, not static assets
+    if request.endpoint and request.endpoint.startswith('static'):
+        return
+    try:
+        bsrow = BrowserSession.query.filter_by(session_id=sid, user_id=current_user.id).first()
+        if bsrow:
+            # Throttle writes: only update if more than 60 seconds have elapsed
+            now = datetime.now(timezone.utc)
+            last = bsrow.last_seen
+            if last is None or (now - last.replace(tzinfo=timezone.utc) if last.tzinfo is None else now - last).total_seconds() > 60:
+                bsrow.last_seen = now
+                db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 # ── Models ────────────────────────────────────────────────────────────────────
 class User(UserMixin, db.Model):
@@ -348,13 +373,22 @@ class ApiToken(db.Model):
     database leak does not expose live credentials.  The raw token is shown
     to the user exactly once (at creation time) and never stored in plain
     text.
+
+    ``origin_ip``      — IP address of the request that created the token.
+    ``client_version`` — version string sent by the client (e.g. Android app
+                         version).  Populated from the ``X-Client-Version``
+                         request header when the token is created; updated on
+                         every authenticated request so it always reflects the
+                         latest known version of that client.
     """
-    id         = db.Column(db.Integer, primary_key=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    name       = db.Column(db.String(100), nullable=False)          # human label
-    token_hash = db.Column(db.String(64), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    last_used  = db.Column(db.DateTime, nullable=True)
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name           = db.Column(db.String(100), nullable=False)          # human label
+    token_hash     = db.Column(db.String(64), unique=True, nullable=False)
+    created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used      = db.Column(db.DateTime, nullable=True)
+    origin_ip      = db.Column(db.String(45), nullable=True)   # IPv4 or IPv6
+    client_version = db.Column(db.String(50), nullable=True)   # e.g. "1.2.3"
 
     user = db.relationship('User', backref='api_tokens')
 
@@ -364,10 +398,17 @@ class ApiToken(db.Model):
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @classmethod
-    def create(cls, user_id: int, name: str):
+    def create(cls, user_id: int, name: str, origin_ip: str = None,
+               client_version: str = None):
         """Generate a new token, persist its hash, and return the raw value."""
         raw = secrets.token_hex(32)
-        token = cls(user_id=user_id, name=name, token_hash=cls.hash(raw))
+        token = cls(
+            user_id=user_id,
+            name=name,
+            token_hash=cls.hash(raw),
+            origin_ip=origin_ip,
+            client_version=client_version,
+        )
         db.session.add(token)
         db.session.commit()
         return raw, token
@@ -376,6 +417,46 @@ class ApiToken(db.Model):
     def lookup(cls, raw: str):
         """Return the ApiToken row for *raw*, or None if invalid."""
         return cls.query.filter_by(token_hash=cls.hash(raw)).first()
+
+
+class BrowserSession(db.Model):
+    """Tracks active browser (cookie-based) login sessions.
+
+    A row is inserted on every successful web login and deleted on logout or
+    admin revocation.  The ``session_id`` is a random hex token stored in the
+    Flask server-side session so the browser can be matched to its DB row.
+
+    ``origin_ip``      — remote address at login time.
+    ``client_version`` — Docker image version (APP_VERSION) recorded at login.
+    ``user_agent``     — truncated User-Agent header for display.
+    ``last_seen``      — updated on each authenticated page request.
+    """
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    session_id     = db.Column(db.String(64), unique=True, nullable=False)
+    created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_seen      = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    origin_ip      = db.Column(db.String(45), nullable=True)
+    client_version = db.Column(db.String(50), nullable=True)
+    user_agent     = db.Column(db.String(200), nullable=True)
+
+    user = db.relationship('User', backref='browser_sessions')
+
+    @classmethod
+    def create(cls, user_id: int, origin_ip: str = None,
+               client_version: str = None, user_agent: str = None):
+        """Create a new session record and return (session_id, row)."""
+        sid = secrets.token_hex(32)
+        row = cls(
+            user_id=user_id,
+            session_id=sid,
+            origin_ip=origin_ip,
+            client_version=client_version,
+            user_agent=(user_agent or '')[:200],
+        )
+        db.session.add(row)
+        db.session.commit()
+        return sid, row
 
 
 @login_manager.user_loader
@@ -511,9 +592,12 @@ def api_login_required(f):
             token_row = ApiToken.lookup(raw)
             if not token_row:
                 return jsonify({'error': 'Invalid or expired token.'}), 401
-            # Stamp last_used (best-effort — don't fail the request on DB error)
+            # Stamp last_used and update client_version if provided
             try:
                 token_row.last_used = datetime.now(timezone.utc)
+                client_ver = request.headers.get('X-Client-Version', '').strip()
+                if client_ver:
+                    token_row.client_version = client_ver[:50]
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -525,6 +609,16 @@ def api_login_required(f):
         # Fall back to session-cookie auth (normal browser flow)
         if not current_user.is_authenticated:
             return jsonify({'error': 'Authentication required.'}), 401
+        # Update browser session last_seen (best-effort)
+        sid = session.get('browser_session_id')
+        if sid:
+            try:
+                bsrow = BrowserSession.query.filter_by(session_id=sid).first()
+                if bsrow:
+                    bsrow.last_seen = datetime.now(timezone.utc)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
         return f(*args, **kwargs)
     return decorated
 
@@ -655,7 +749,7 @@ def _safe_next(next_url):
 
 def _init_db():
     with app.app_context():
-        db.create_all()   # also creates api_token table on first run
+        db.create_all()   # also creates api_token / browser_session tables on first run
         # Enable WAL mode here (Flask-SQLAlchemy 3.x no longer supports
         # accessing db.engine at module scope outside an app context)
         with db.engine.connect() as _wal_conn:
@@ -674,6 +768,20 @@ def _init_db():
                 print(f"[WhiskyWise] WARNING: DB migration check failed — "
                       f"the app may still work but please verify the 'user' table schema. "
                       f"Error: {exc}")
+            # Migrate api_token table — add new columns if they don't exist yet
+            try:
+                token_cols = [row[1] for row in cur.execute('PRAGMA table_info("api_token")').fetchall()]
+                if 'origin_ip' not in token_cols:
+                    cur.execute('ALTER TABLE "api_token" ADD COLUMN origin_ip VARCHAR(45)')
+                    conn.commit()
+                    print("[WhiskyWise] Migrated DB: added origin_ip to api_token.")
+                if 'client_version' not in token_cols:
+                    cur.execute('ALTER TABLE "api_token" ADD COLUMN client_version VARCHAR(50)')
+                    conn.commit()
+                    print("[WhiskyWise] Migrated DB: added client_version to api_token.")
+            except Exception as exc:
+                conn.rollback()
+                print(f"[WhiskyWise] WARNING: api_token migration failed: {exc}")
         finally:
             conn.close()
         db.session.expire_all()
@@ -711,6 +819,19 @@ def login():
             # enforce_password_change() can redirect them before anything else.
             if user.check_password('whiskywise'):
                 session['must_change_password'] = True
+            # Record a browser session row for this login
+            origin_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+            ua = request.headers.get('User-Agent', '')
+            try:
+                sid, _ = BrowserSession.create(
+                    user_id=user.id,
+                    origin_ip=origin_ip or None,
+                    client_version=APP_VERSION,
+                    user_agent=ua,
+                )
+                session['browser_session_id'] = sid
+            except Exception:
+                db.session.rollback()
             # Validate next param to prevent open-redirect
             return redirect(_safe_next(request.args.get('next')) or url_for('index'))
         flash('Invalid username or password.', 'error')
@@ -720,6 +841,16 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    # Remove the browser session record from the DB
+    sid = session.get('browser_session_id')
+    if sid:
+        try:
+            bsrow = BrowserSession.query.filter_by(session_id=sid).first()
+            if bsrow:
+                db.session.delete(bsrow)
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
     logout_user()
     return redirect(url_for('login'))
 
@@ -776,7 +907,44 @@ def settings():
                 current_user.set_password(request.form['new'])
                 db.session.commit()
                 flash('Password changed successfully.', 'success')
-    return render_template('settings.html')
+    # Collect session and token data for display
+    current_sid = session.get('browser_session_id')
+    raw_sessions = BrowserSession.query.filter_by(user_id=current_user.id).order_by(BrowserSession.id).all()
+    # Annotate each with whether it is the current session
+    browser_sessions = []
+    for s in raw_sessions:
+        s.current = (s.session_id == current_sid)
+        browser_sessions.append(s)
+    api_tokens = ApiToken.query.filter_by(user_id=current_user.id).order_by(ApiToken.id).all()
+    return render_template('settings.html', browser_sessions=browser_sessions, api_tokens=api_tokens)
+
+
+@app.route('/settings/session/<int:sid>/revoke', methods=['POST'])
+@login_required
+def settings_revoke_session(sid):
+    """Self-service: user revokes one of their own browser sessions."""
+    row = BrowserSession.query.filter_by(id=sid, user_id=current_user.id).first()
+    if not row:
+        flash('Session not found.', 'error')
+    else:
+        db.session.delete(row)
+        db.session.commit()
+        flash('Session revoked.', 'info')
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/token/<int:tid>/revoke', methods=['POST'])
+@login_required
+def settings_revoke_token(tid):
+    """Self-service: user revokes one of their own API tokens."""
+    row = ApiToken.query.filter_by(id=tid, user_id=current_user.id).first()
+    if not row:
+        flash('Token not found.', 'error')
+    else:
+        db.session.delete(row)
+        db.session.commit()
+        flash(f'Token "{row.name}" revoked.', 'info')
+    return redirect(url_for('settings'))
 
 # ── Admin panel ───────────────────────────────────────────────────────────────
 @app.route('/admin')
@@ -1171,7 +1339,14 @@ def api_create_token():
     if not (user and pw_ok):
         return jsonify({'error': 'Invalid username or password.'}), 401
 
-    raw, token_row = ApiToken.create(user_id=user.id, name=label)
+    origin_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+    client_ver = request.headers.get('X-Client-Version', '').strip() or None
+    raw, token_row = ApiToken.create(
+        user_id=user.id,
+        name=label,
+        origin_ip=origin_ip or None,
+        client_version=client_ver,
+    )
     return jsonify({'data': {
         'token':    raw,
         'id':       token_row.id,
@@ -1190,10 +1365,12 @@ def api_list_tokens():
     tokens = ApiToken.query.filter_by(user_id=current_user.id).order_by(ApiToken.id).all()
     return jsonify({'data': [
         {
-            'id':        t.id,
-            'name':      t.name,
-            'created':   t.created_at.isoformat(),
-            'last_used': t.last_used.isoformat() if t.last_used else None,
+            'id':             t.id,
+            'name':           t.name,
+            'created':        t.created_at.isoformat(),
+            'last_used':      t.last_used.isoformat() if t.last_used else None,
+            'origin_ip':      t.origin_ip,
+            'client_version': t.client_version,
         }
         for t in tokens
     ]})
@@ -1210,6 +1387,89 @@ def api_revoke_token(tid):
     db.session.delete(token_row)
     db.session.commit()
     return jsonify({'data': {'revoked': tid}})
+
+
+# ── Browser session management ────────────────────────────────────────────────
+
+@app.route('/api/auth/sessions')
+@api_login_required
+def api_list_sessions():
+    """List all active browser sessions for the authenticated user."""
+    rows = BrowserSession.query.filter_by(user_id=current_user.id).order_by(BrowserSession.id).all()
+    current_sid = session.get('browser_session_id')
+    return jsonify({'data': [
+        {
+            'id':             r.id,
+            'created':        r.created_at.isoformat(),
+            'last_seen':      r.last_seen.isoformat() if r.last_seen else None,
+            'origin_ip':      r.origin_ip,
+            'client_version': r.client_version,
+            'user_agent':     r.user_agent,
+            'current':        r.session_id == current_sid,
+        }
+        for r in rows
+    ]})
+
+
+@csrf.exempt
+@app.route('/api/auth/session/<int:sid>', methods=['DELETE'])
+@api_login_required
+def api_revoke_session(sid):
+    """Revoke (delete) one of the authenticated user's browser sessions."""
+    row = BrowserSession.query.filter_by(id=sid, user_id=current_user.id).first()
+    if not row:
+        return jsonify({'error': 'Session not found.'}), 404
+    db.session.delete(row)
+    db.session.commit()
+    return jsonify({'data': {'revoked': sid}})
+
+
+# ── Admin session/token management ───────────────────────────────────────────
+
+@app.route('/admin/sessions')
+@login_required
+@admin_required
+def admin_sessions():
+    """Admin view: all API tokens and browser sessions across all users."""
+    users = User.query.order_by(User.id).all()
+    api_tokens = ApiToken.query.order_by(ApiToken.user_id, ApiToken.id).all()
+    browser_sessions = BrowserSession.query.order_by(BrowserSession.user_id, BrowserSession.id).all()
+    return render_template(
+        'admin_sessions.html',
+        users=users,
+        api_tokens=api_tokens,
+        browser_sessions=browser_sessions,
+    )
+
+
+@app.route('/admin/sessions/token/<int:tid>/revoke', methods=['POST'])
+@login_required
+@admin_required
+def admin_revoke_token(tid):
+    """Admin: revoke any user's API token."""
+    token_row = db.session.get(ApiToken, tid)
+    if not token_row:
+        flash('Token not found.', 'error')
+    else:
+        db.session.delete(token_row)
+        db.session.commit()
+        flash(f'API token #{tid} revoked.', 'info')
+    return redirect(url_for('admin_sessions'))
+
+
+@app.route('/admin/sessions/browser/<int:sid>/revoke', methods=['POST'])
+@login_required
+@admin_required
+def admin_revoke_session(sid):
+    """Admin: revoke any user's browser session."""
+    row = db.session.get(BrowserSession, sid)
+    if not row:
+        flash('Session not found.', 'error')
+    else:
+        db.session.delete(row)
+        db.session.commit()
+        flash(f'Browser session #{sid} revoked.', 'info')
+    return redirect(url_for('admin_sessions'))
 
 
 # ── Stats / dashboard ─────────────────────────────────────────────────────────

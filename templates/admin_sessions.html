@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}Sessions & Tokens — WhiskyWise Admin{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.5rem;">
+  <div>
+    <h1 style="color:var(--amber-glow);">🔐 Sessions &amp; API Tokens</h1>
+    <p style="font-size:0.85rem;margin-top:0.2rem;">
+      View and revoke active browser sessions and API tokens across all users.
+    </p>
+  </div>
+  <a href="{{ url_for('admin_panel') }}" class="btn btn-secondary btn-sm">← Admin Panel</a>
+</div>
+
+{# Build a lookup map user id → username #}
+{% set user_map = {} %}
+{% for u in users %}{% if user_map.update({u.id: u.username}) %}{% endif %}{% endfor %}
+
+<!-- ── Browser Sessions ─────────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:1.5rem;">
+  <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+    <h3>🌐 Browser Sessions</h3>
+    <span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">
+      {{ browser_sessions|length }} active
+    </span>
+  </div>
+
+  {% if browser_sessions %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.2);">
+          <th class="_th">User</th>
+          <th class="_th">IP Address</th>
+          <th class="_th">Version</th>
+          <th class="_th">User Agent</th>
+          <th class="_th">Logged In</th>
+          <th class="_th">Last Seen</th>
+          <th class="_th"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in browser_sessions %}
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.08);">
+          <td class="_td" style="color:var(--grain);font-family:'Playfair Display',serif;">
+            {{ user_map.get(s.user_id, '?') }}
+            {% if s.user_id == current_user.id %}
+            <span style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ash);margin-left:0.3rem;">(you)</span>
+            {% endif %}
+          </td>
+          <td class="_td mono">{{ s.origin_ip or '—' }}</td>
+          <td class="_td mono">
+            {% if s.client_version %}
+            <span style="color:var(--amber-light);">v{{ s.client_version }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="_td" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--ash);"
+              title="{{ s.user_agent or '' }}">
+            {{ s.user_agent or '—' }}
+          </td>
+          <td class="_td mono dim">{{ s.created_at.strftime('%d %b %Y %H:%M') }}</td>
+          <td class="_td mono dim">{{ s.last_seen.strftime('%d %b %Y %H:%M') if s.last_seen else '—' }}</td>
+          <td class="_td" style="text-align:right;">
+            <form method="POST" action="{{ url_for('admin_revoke_session', sid=s.id) }}"
+                  onsubmit="return confirm('Revoke this session?');">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger btn-sm"
+                      style="background:rgba(180,50,50,0.15);color:#f08080;border-color:rgba(180,50,50,0.3);">
+                Revoke
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--ash);font-size:0.88rem;padding:0.5rem 0;">No active browser sessions.</p>
+  {% endif %}
+</div>
+
+<!-- ── API Tokens ───────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+    <h3>🔑 API Tokens</h3>
+    <span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">
+      {{ api_tokens|length }} total
+    </span>
+  </div>
+
+  {% if api_tokens %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.2);">
+          <th class="_th">User</th>
+          <th class="_th">Token Name</th>
+          <th class="_th">Origin IP</th>
+          <th class="_th">Version</th>
+          <th class="_th">Created</th>
+          <th class="_th">Last Used</th>
+          <th class="_th"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in api_tokens %}
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.08);">
+          <td class="_td" style="color:var(--grain);font-family:'Playfair Display',serif;">
+            {{ user_map.get(t.user_id, '?') }}
+          </td>
+          <td class="_td" style="color:var(--grain-mid);">{{ t.name }}</td>
+          <td class="_td mono">{{ t.origin_ip or '—' }}</td>
+          <td class="_td mono">
+            {% if t.client_version %}
+            <span style="color:var(--amber-light);">v{{ t.client_version }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="_td mono dim">{{ t.created_at.strftime('%d %b %Y %H:%M') }}</td>
+          <td class="_td mono dim">{{ t.last_used.strftime('%d %b %Y %H:%M') if t.last_used else 'Never' }}</td>
+          <td class="_td" style="text-align:right;">
+            <form method="POST" action="{{ url_for('admin_revoke_token', tid=t.id) }}"
+                  onsubmit="return confirm('Revoke token "{{ t.name }}"?');">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger btn-sm"
+                      style="background:rgba(180,50,50,0.15);color:#f08080;border-color:rgba(180,50,50,0.3);">
+                Revoke
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--ash);font-size:0.88rem;padding:0.5rem 0;">No API tokens issued.</p>
+  {% endif %}
+</div>
+
+<style>
+._th {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--amber-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+}
+._td {
+  padding: 0.65rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--grain-mid);
+  vertical-align: middle;
+}
+.mono { font-family: 'DM Mono', monospace; }
+.dim  { color: var(--ash); }
+</style>
+
+{% endblock %}

@@ -17,6 +17,7 @@ Track your whisky collection, log tasting notes, and analyze flavor profiles —
 * 👥 Multi-user support
 * 📝 Wishlist tracking
 * 📱 REST API for mobile and third-party clients *(New in v1.5.0)*
+* 🔐 Session & token management — view and revoke per-device sessions *(New in v1.5.5)*
 * 🤖 Native Android companion app *(New)*
 
 ## ❓ Why Whisky Wise?
@@ -195,13 +196,45 @@ Include the token on every subsequent request:
 Authorization: Bearer a3f9...
 ```
 
+#### Client Version Header *(New in v1.5.5)*
+
+API clients are encouraged to send their app version on every request via the
+`X-Client-Version` header.  The server records this on the token row and
+updates it each time the header is seen — no extra calls required.  This lets
+admins (and the token owner) identify which app version is associated with each
+active token from the Settings or Admin → Sessions & Tokens pages.
+
+```
+X-Client-Version: 1.2.0
+```
+
+> **Android app note:** Version header support is planned for a future app
+> release.  The server accepts the header now — no server-side changes will be
+> needed when the app adds it.
+
+### Session & Token Management *(New in v1.5.5)*
+
+Every login is tracked as a **browser session** and every issued API token is
+tracked individually.  Both can be viewed and revoked:
+
+- **Users** — go to ⚙ Settings to see all your active browser sessions and API
+  tokens.  Each entry shows the origin IP, client version, and (for browser
+  sessions) the User-Agent.  You can revoke any session or token that doesn't
+  look right.
+
+- **Admins** — the Admin Panel now has a 🔐 *Sessions & Tokens* link that
+  shows sessions and tokens across **all users**, with per-entry revoke
+  controls.
+
 ### Endpoint Reference
 
 | Method | Path | Description |
 | --- | --- | --- |
 | `POST` | `/api/auth/token` | Exchange username + password for a Bearer token |
-| `GET` | `/api/auth/tokens` | List your tokens (metadata only) |
+| `GET` | `/api/auth/tokens` | List your tokens (metadata + IP + version) |
 | `DELETE` | `/api/auth/token/<id>` | Revoke a token |
+| `GET` | `/api/auth/sessions` | List your active browser sessions *(New in v1.5.5)* |
+| `DELETE` | `/api/auth/session/<id>` | Revoke a browser session *(New in v1.5.5)* |
 | `GET` | `/api/v1/stats` | Dashboard counts + top-10 + flavour profile list |
 | `GET` | `/api/v1/collection` | Collection list (filterable + paginated) |
 | `GET` | `/api/v1/wishlist` | Wishlist |

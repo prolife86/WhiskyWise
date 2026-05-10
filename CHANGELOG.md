@@ -5,6 +5,64 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.5] — 2026-05-10 👁 The Watchful Pour
+
+### Added
+
+- **Session & token management for users** — the Settings page now shows all
+  of your active browser sessions and issued API tokens, with per-entry revoke
+  buttons.  Each entry displays the origin IP address, client/app version, and
+  (for browser sessions) the User-Agent string, so you can immediately spot
+  anything that doesn't look like yours.
+
+- **Admin-level session & token view** — a new *Sessions & Tokens* page is
+  accessible from the Admin Panel (`👑 → 🔐 Sessions & Tokens`).  Admins can
+  see every active browser session and API token across all users and revoke
+  any of them individually.
+
+- **Origin IP recording** — the remote IP address is captured at login time
+  (for browser sessions) and at token-creation time (for API tokens), and is
+  stored per-row.  Proxy-aware: reads the first address from
+  `X-Forwarded-For` when present, falls back to `REMOTE_ADDR`.
+
+- **Client version tracking** — browser sessions record the running Docker
+  image version (`APP_VERSION`) at login.  API token sessions record the
+  version string supplied by the client in the `X-Client-Version` request
+  header, updated automatically on every authenticated request so the field
+  always reflects the most recently seen version of that client.
+
+- **New API endpoints**:
+  - `GET  /api/auth/sessions` — list the current user's browser sessions
+  - `DELETE /api/auth/session/<id>` — revoke one browser session
+  - `GET  /api/auth/tokens` — existing endpoint, now also returns
+    `origin_ip` and `client_version` fields
+  - Admin revoke routes (web-only, CSRF-protected):
+    - `POST /admin/sessions/token/<id>/revoke`
+    - `POST /admin/sessions/browser/<id>/revoke`
+
+### Changed
+
+- `GET /api/auth/tokens` response now includes `origin_ip` and
+  `client_version` fields alongside the existing metadata.
+
+- The `api_login_required` decorator now reads the `X-Client-Version` header
+  on every Bearer-authenticated request and persists it to the token row, so
+  the displayed version stays current without any additional calls from the
+  client.
+
+### Technical
+
+- New `BrowserSession` database model (`browser_session` table), created
+  automatically on first run via `db.create_all()`.
+- `api_token` table is migrated on startup to add `origin_ip` and
+  `client_version` columns if upgrading from an older release — no manual
+  SQL required.
+- A `before_request` hook updates `BrowserSession.last_seen` on each
+  authenticated page load, throttled to at most one DB write per 60 seconds
+  per session to keep overhead negligible.
+
+---
+
 ## [1.5.4] — 2026-05-06 🧹 The Field-Clearing Fix
 
 ### Fixed

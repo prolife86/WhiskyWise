@@ -592,9 +592,13 @@ def api_login_required(f):
             token_row = ApiToken.lookup(raw)
             if not token_row:
                 return jsonify({'error': 'Invalid or expired token.'}), 401
-            # Stamp last_used and update client_version if provided
+            # Stamp last_used, and refresh IP + client_version so they always
+            # reflect the most recent request rather than just the login call.
             try:
                 token_row.last_used = datetime.now(timezone.utc)
+                current_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+                if current_ip:
+                    token_row.origin_ip = current_ip
                 client_ver = request.headers.get('X-Client-Version', '').strip()
                 if client_ver:
                     token_row.client_version = client_ver[:50]

@@ -1,4 +1,6 @@
-# 🥃 Whisky Wise - *Your Personal Spirits Guide*
+<img src="Icons/whiskywise_website_icon.svg" alt="WhiskyWise" width="80" align="left" style="margin-right:16px"/>
+
+# Whisky Wise - *Your Personal Spirits Guide*
 
 Track your whisky collection, log tasting notes, and analyze flavor profiles — all in a self-hosted web app.
 

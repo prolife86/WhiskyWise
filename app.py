@@ -1077,6 +1077,8 @@ def collection():
     min_score     = request.args.get('min_score', '')
     max_price     = request.args.get('max_price', '')
     status_filter = request.args.get('status', '')
+    sort          = request.args.get('sort', 'score')
+    order         = request.args.get('order', 'desc')
 
     query = Whisky.query.filter_by(user_id=current_user.id, wishlist=False)
     if q:
@@ -1098,21 +1100,49 @@ def collection():
     if status_filter:
         query = query.filter(Whisky.status == status_filter)
 
-    whiskies = query.order_by(Whisky.score.desc().nullslast(), Whisky.name).all()
+    _SORT_COLS = {
+        'distillery': Whisky.distillery,
+        'name':       Whisky.name,
+        'price':      Whisky.price,
+        'score':      Whisky.score,
+    }
+    sort_col = _SORT_COLS.get(sort, Whisky.score)
+    if order == 'asc':
+        query = query.order_by(sort_col.asc().nullslast(), Whisky.name)
+    else:
+        query = query.order_by(sort_col.desc().nullslast(), Whisky.name)
+
+    whiskies = query.all()
     return render_template('collection.html',
                            whiskies=whiskies,
                            dominant_flavours=DOMINANT_FLAVOURS,
                            filters=dict(q=q, flavor=flavor, min_score=min_score,
-                                        max_price=max_price, status=status_filter))
+                                        max_price=max_price, status=status_filter,
+                                        sort=sort, order=order))
 
 
 @app.route('/wishlist')
 @login_required
 def wishlist():
-    items = (Whisky.query
-             .filter_by(user_id=current_user.id, wishlist=True)
-             .order_by(Whisky.created_at.desc()).all())
-    return render_template('wishlist.html', items=items)
+    sort  = request.args.get('sort', 'distillery')
+    order = request.args.get('order', 'asc')
+
+    _SORT_COLS = {
+        'distillery': Whisky.distillery,
+        'name':       Whisky.name,
+        'price':      Whisky.price,
+        'score':      Whisky.score,
+    }
+    sort_col = _SORT_COLS.get(sort, Whisky.distillery)
+    query = Whisky.query.filter_by(user_id=current_user.id, wishlist=True)
+    if order == 'asc':
+        query = query.order_by(sort_col.asc().nullslast(), Whisky.name)
+    else:
+        query = query.order_by(sort_col.desc().nullslast(), Whisky.name)
+
+    items = query.all()
+    return render_template('wishlist.html', items=items,
+                           sort=sort, order=order)
 
 # ── Whisky CRUD ───────────────────────────────────────────────────────────────
 @app.route('/whisky/new', methods=['GET', 'POST'])

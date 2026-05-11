@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.7] — 2026-05-11 🗂 Sort Yourself Out
+
+### Added
+
+- **Sort controls on Collection and Wishlist** — a dropdown in both views lets
+  you order your bottles by Distillery, Name, Price, or Score, each available
+  ascending (↑) or descending (↓). The collection defaults to Score ↓;
+  the wishlist defaults to Distillery ↑. Selection persists across filter
+  changes via hidden form fields.
+
+---
+
 ## [1.5.6] — 2026-05-11 🕵🏻‍♀️ The Session Whisperer
 
 ### Fixed

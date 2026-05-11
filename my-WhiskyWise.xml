@@ -3,32 +3,37 @@
   <Name>WhiskyWise</Name>
   <Repository>ghcr.io/prolife86/whiskywise:latest</Repository>
   <Registry>https://github.com/prolife86/WhiskyWise</Registry>
-  <Network>eth1</Network>
-  <MyIP>192.168.1.XX</MyIP>
+  <Network>host</Network>
+  <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support/>
-  <Project/>
+  <Support>https://forums.unraid.net/topic/198581-support-whiskywise/</Support>
+  <Project>https://github.com/prolife86/WhiskyWise</Project>
   <ReadMe/>
   <Overview>Your Personal Spirits Guide&#13;
 &#13;
-Whisky Wise is a lightweight, containerized personal assistant for spirits enthusiasts. Whether you're tracking a growing collection or cataloging the nuance of a rare Islay peat, Whisky Wise provides a clean, distraction-free interface to manage your journey through the world of whisky.</Overview>
-  <Category/>
+Whisky Wise is a lightweight, containerized personal assistant for spirits enthusiasts. Whether you're tracking a growing collection or cataloging the nuance of a rare Islay peat, Whisky Wise provides a clean, distraction-free interface to manage your journey through the world of whisky.&#13;
+&#13;
+! Be Aware !&#13;
+The Flask session secret (SECRET_KEY) must be changed before starting the container; otherwise, the container will not be persistent.</Overview>
+  <Category>Productivity:</Category>
   <WebUI>http://[IP]:[PORT:5000]</WebUI>
   <TemplateURL/>
   <Icon>https://raw.githubusercontent.com/prolife86/WhiskyWise/refs/heads/main/Icons/Icon%201.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>
-  <DateInstalled>1775652522</DateInstalled>
-  <DonateText/>
-  <DonateLink/>
+  <DateInstalled>1777818182</DateInstalled>
+  <DonateText>Help support my work by buying me a coffee<DonateText/>
+  <DonateLink>https://www.paypal.me/SonsyICT<DonateLink/>
   <Requires/>
-  <Config Name="App Data" Target="/data" Default="" Mode="rw" Description="Always map the data directory to a local volume. &#13;&#10;If you delete the container without a volume mapping, you will lose your tasting history and collection data." Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/WhiskyWise/</Config>
-  <Config Name="WegUI Port" Target="" Default="5000" Mode="tcp" Description="WebUI Port" Type="Port" Display="always" Required="false" Mask="false">5000</Config>
-  <Config Name="Upload Folder" Target="UPLOAD_FOLDER" Default="" Mode="" Description="Storage Folder for pictures inside the container" Type="Variable" Display="always" Required="false" Mask="false">/data/uploads</Config>
-  <Config Name="Database Path" Target="DATABASE_PATH" Default="" Mode="" Description="SQLite DB path" Type="Variable" Display="always" Required="false" Mask="false">/data/db/whiskywise.db</Config>
-  <Config Name="Secret Key" Target="SECRET_KEY" Default="" Mode="" Description="Flask session secret &#x2014; must be changed" Type="Variable" Display="always" Required="false" Mask="true">change-this-to-a-long-random-secret</Config>
-  <Config Name="Time Zone" Target="TZ" Default="" Mode="" Description="Set to your timezone per https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List" Type="Variable" Display="always" Required="false" Mask="false">Europe/Amsterdam</Config>
+  <Config Name="App Data" Target="/data" Default="/mnt/user/appdata/WhiskyWise/" Mode="rw" Description="Always map the data directory to a local volume. &#13;&#10;If you delete the container without a volume mapping, you will lose your tasting history and collection data." Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/WhiskyWise/</Config>
+  <Config Name="WebUI Port" Target="5000" Default="5000" Mode="tcp" Description="WebUI Port" Type="Port" Display="always" Required="false" Mask="false">5000</Config>
+  <Config Name="Secret Key" Target="SECRET_KEY" Default="" Mode="" Description="Flask session secret &#x2014; must be changed" Type="Variable" Display="always" Required="false" Mask="true">aef7b4a30f8b1b5f2fa262d122dcb60536281a4cf1ff7907d3e3060aab2df609</Config>
+  <Config Name="Time Zone" Target="TZ" Default="Europe/Amsterdam" Mode="" Description="Set to your timezone per https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List" Type="Variable" Display="always" Required="false" Mask="false">Europe/Amsterdam</Config>
+  <Config Name="Session Secure Cookie" Target="SESSION_COOKIE_SECURE" Default="false" Mode="" Description="Set to true if hosted behind a reverse proxy that terminates HTTP!&#13;&#10;Without these flags, session cookies can be transmitted over plain HTTP!" Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="Remember Secure Cookie " Target="REMEMBER_COOKIE_SECURE" Default="false" Mode="" Description="Set to true if hosted behind a reverse proxy that terminates HTTP! Without these flags, session cookies can be transmitted over plain HTTP!" Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+  <Config Name="Upload Folder" Target="UPLOAD_FOLDER" Default="/data/uploads" Mode="" Description="Storage Folder for pictures inside the container" Type="Variable" Display="advanced" Required="false" Mask="false">/data/uploads</Config>
+  <Config Name="Database Path" Target="DATABASE_PATH" Default="/data/db/whiskywise.db" Mode="" Description="SQLite DB path" Type="Variable" Display="advanced" Required="false" Mask="false">/data/db/whiskywise.db</Config>
   <TailscaleStateDir/>
 </Container>

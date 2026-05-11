@@ -13,6 +13,7 @@ Track your whisky collection, log tasting notes, and analyze flavor profiles —
 * 📸 Photo storage (labels, bottle, barcode)
 * 💰 Purchase tracking (price, store, retired)
 * 🔍 Search & filtering (name, distillery, barcode, flavor, score)
+* 🔀 Sort collection & wishlist by distillery, name, price, or score *(New in v1.5.7)*
 * 📊 Top 10 chart
 * 📦 CSV export (full data ownership)
 * 📷 Barcode scanning (camera-based)

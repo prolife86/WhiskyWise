@@ -15,22 +15,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the wishlist defaults to Distillery ↑. Selection persists across filter
   changes via hidden form fields.
 
-### Fixed
-
-- **Session expired on form entry** — two cooperating bugs were conspiring
-  against you. First, `api_login_required` was calling `login_user()` for
-  Bearer-token requests, which silently rotates `session["_id"]` on every API
-  call and invalidates the browser tab's CSRF token. Fixed by setting
-  `g._login_user` directly — API requests no longer touch the session at all.
-  Second, the new `update_browser_session_activity` before-request hook
-  (introduced in v1.5.5) reads the session on every request, causing Flask to
-  re-issue the session cookie each time. Without an explicit `Max-Age`, proxies
-  such as Home Assistant ingress treat each re-issued cookie as a fresh
-  zero-lifetime session and expire it within seconds. Fixed by marking sessions
-  permanent with a 30-day lifetime so the cookie carries a proper `Max-Age`.
-  CSRF tokens are also set to never expire (`WTF_CSRF_TIME_LIMIT = None`) as a
-  belt-and-suspenders measure for long-running form sessions.
-
 ---
 
 ## [1.5.6] — 2026-05-11 🕵🏻‍♀️ The Session Whisperer

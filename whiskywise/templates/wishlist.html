@@ -5,6 +5,33 @@
   <h1 style="color:var(--amber-glow);">💫 Wishlist</h1>
   <a href="{{ url_for('new_wishlist_item') }}" class="btn btn-primary">+ Add to Wishlist</a>
 </div>
+
+<form method="GET" action="{{ url_for('wishlist') }}" id="wishlist-sort-form" style="margin-bottom:1rem;">
+  <input type="hidden" name="sort"  id="wl-sort-hidden"  value="{{ sort }}">
+  <input type="hidden" name="order" id="wl-order-hidden" value="{{ order }}">
+  <select id="wl-sort-select" title="Sort" style="min-width:150px;">
+    <option value="distillery|asc"  {% if sort=='distillery' and order=='asc'  %}selected{% endif %}>Distillery ↑</option>
+    <option value="distillery|desc" {% if sort=='distillery' and order=='desc' %}selected{% endif %}>Distillery ↓</option>
+    <option value="name|asc"        {% if sort=='name'       and order=='asc'  %}selected{% endif %}>Name ↑</option>
+    <option value="name|desc"       {% if sort=='name'       and order=='desc' %}selected{% endif %}>Name ↓</option>
+    <option value="price|asc"       {% if sort=='price'      and order=='asc'  %}selected{% endif %}>Price ↑</option>
+    <option value="price|desc"      {% if sort=='price'      and order=='desc' %}selected{% endif %}>Price ↓</option>
+    <option value="score|asc"       {% if sort=='score'      and order=='asc'  %}selected{% endif %}>Score ↑</option>
+    <option value="score|desc"      {% if sort=='score'      and order=='desc' %}selected{% endif %}>Score ↓</option>
+  </select>
+</form>
+<script>
+(function(){
+  var sel = document.getElementById('wl-sort-select');
+  var sh  = document.getElementById('wl-sort-hidden');
+  var oh  = document.getElementById('wl-order-hidden');
+  if (sel) sel.addEventListener('change', function(){
+    var parts = sel.value.split('|');
+    sh.value = parts[0]; oh.value = parts[1];
+    document.getElementById('wishlist-sort-form').submit();
+  });
+})();
+</script>
 {% if items %}
 <div style="display:grid;gap:0.75rem;">
 {% for w in items %}

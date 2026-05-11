@@ -4,6 +4,7 @@ __pycache__/
 *.pyd
 .env
 my-WhiskyWise.xml
+ca_profile.xml
 data/
 *.db
 *.tar.gz

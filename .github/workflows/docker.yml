@@ -25,18 +25,6 @@ on:
   release:
     types: [ published ]
 
-  push:
-    branches: [ "main" ]
-    paths:
-      - "app.py"
-      - "requirements.txt"
-      - "templates/**"
-      - "whiskywise/**"
-      - "Dockerfile"
-
-  pull_request:
-    branches: [ "main" ]
-
   workflow_dispatch:
 
 env:
@@ -115,7 +103,7 @@ jobs:
     name: Build & push Docker image
     runs-on: ubuntu-latest
     needs: [ extract-version, sync-version ]
-    if: always() && (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped')
+    if: needs.sync-version.result == 'success'
     permissions:
       contents: read
       packages: write

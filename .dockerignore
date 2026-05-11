@@ -2,6 +2,7 @@ __pycache__
 Icons/
 Screenshots/
 my-WhiskyWise.xml
+ca_profile.xml
 .github/workflows/
 *.pyc
 *.pyo

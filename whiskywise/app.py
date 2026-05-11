@@ -3,11 +3,11 @@ import re
 import csv
 import io
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from functools import wraps
 from urllib.parse import urlparse
 from flask import (Flask, render_template, request, redirect, url_for,
-                   flash, jsonify, send_file, abort, session)
+                   flash, jsonify, send_file, abort, session, g)
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (LoginManager, UserMixin, login_user, logout_user,
                          login_required, current_user)
@@ -51,11 +51,15 @@ os.makedirs(upload_folder, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_folder
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # 64 MB
 app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = None          # CSRF tokens never expire on their own
 # Fix 1: cookie hardening
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+# Give the session cookie an explicit Max-Age so proxies (e.g. HA ingress) don't
+# treat every re-issued cookie as a brand-new zero-lifetime session.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 # Fix 2: gif removed — it's converted to jpg anyway and adds unnecessary attack surface
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -605,10 +609,12 @@ def api_login_required(f):
                 db.session.commit()
             except Exception:
                 db.session.rollback()
-            # Temporarily set flask-login's current_user for the duration of
-            # this request so all existing helpers keep working unchanged.
-            from flask_login import login_user as _lu
-            _lu(token_row.user, remember=False)
+            # Set flask-login's current_user for this request via g, WITHOUT
+            # calling login_user() — that overwrites session["_id"] and rotates
+            # the session on every API call, which invalidates the browser tab's
+            # CSRF token and causes proxies (e.g. HA ingress) to reset the
+            # session cookie lifetime on every API poll.
+            g._login_user = token_row.user
             return f(*args, **kwargs)
         # Fall back to session-cookie auth (normal browser flow)
         if not current_user.is_authenticated:
@@ -818,6 +824,7 @@ def login():
             request.form.get('password', '')
         )
         if user and pw_ok:
+            session.permanent = True          # honour PERMANENT_SESSION_LIFETIME
             login_user(user, remember=True)
             # Flag the session if the user is still on the default password so
             # enforce_password_change() can redirect them before anything else.

@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 *.pyd
 .env
+my-WhiskyWise.xml
 data/
 *.db
 *.tar.gz

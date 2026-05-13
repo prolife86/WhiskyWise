@@ -31,20 +31,27 @@
       <option value="stashed"  {% if filters.status=='stashed'  %}selected{% endif %}>Stashed</option>
       <option value="finished" {% if filters.status=='finished' %}selected{% endif %}>Finished</option>
     </select>
+    <select name="retired" onchange="this.form.submit()" title="Retired filter">
+      <option value="">Retired &amp; Non-retired</option>
+      <option value="no"  {% if filters.retired=='no'  %}selected{% endif %}>Non-retired only</option>
+      <option value="yes" {% if filters.retired=='yes' %}selected{% endif %}>Retired only</option>
+    </select>
     <select id="sort-select" title="Sort" style="min-width:150px;">
-      <option value="distillery|asc"  {% if filters.sort=='distillery' and filters.order=='asc'  %}selected{% endif %}>Distillery ↑</option>
-      <option value="distillery|desc" {% if filters.sort=='distillery' and filters.order=='desc' %}selected{% endif %}>Distillery ↓</option>
       <option value="name|asc"        {% if filters.sort=='name'       and filters.order=='asc'  %}selected{% endif %}>Name ↑</option>
       <option value="name|desc"       {% if filters.sort=='name'       and filters.order=='desc' %}selected{% endif %}>Name ↓</option>
+      <option value="distillery|asc"  {% if filters.sort=='distillery' and filters.order=='asc'  %}selected{% endif %}>Distillery ↑</option>
+      <option value="distillery|desc" {% if filters.sort=='distillery' and filters.order=='desc' %}selected{% endif %}>Distillery ↓</option>
       <option value="price|asc"       {% if filters.sort=='price'      and filters.order=='asc'  %}selected{% endif %}>Price ↑</option>
       <option value="price|desc"      {% if filters.sort=='price'      and filters.order=='desc' %}selected{% endif %}>Price ↓</option>
       <option value="score|asc"       {% if filters.sort=='score'      and filters.order=='asc'  %}selected{% endif %}>Score ↑</option>
       <option value="score|desc"      {% if filters.sort=='score'      and filters.order=='desc' %}selected{% endif %}>Score ↓</option>
+      <option value="updated|asc"     {% if filters.sort=='updated'    and filters.order=='asc'  %}selected{% endif %}>Updated ↑</option>
+      <option value="updated|desc"    {% if filters.sort=='updated'    and filters.order=='desc' %}selected{% endif %}>Updated ↓</option>
     </select>
     <input type="hidden" name="sort"  id="sort-hidden"  value="{{ filters.sort }}">
     <input type="hidden" name="order" id="order-hidden" value="{{ filters.order }}">
     <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
-    {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status %}
+    {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status or filters.retired %}
     <a href="{{ url_for('collection') }}" class="btn btn-ghost btn-sm">✕ Clear</a>
     {% endif %}
   </div>
@@ -52,7 +59,7 @@
 
 <p style="font-size:0.82rem;color:var(--ash);margin:0.75rem 0 1rem;">
   {{ whiskies|length }} bottle{{ 's' if whiskies|length != 1 }}
-  {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status %}
+  {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status or filters.retired %}
   matching filters
   {% endif %}
 </p>
@@ -81,10 +88,10 @@
       <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
       <div style="display:flex;align-items:center;gap:0.5rem;">
         {% if w.price %}
-          <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">€{{ '%.2f'|format(w.price) }}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">€{{ '%.2f'|format(w.price)|replace('.', ',') }}</span>
         {% endif %}
         {% if w.score is not none %}
-          <div class="score-badge small">{{ '%.1f'|format(w.score) }}</div>
+          <div class="score-badge small">{{ '%.1f'|format(w.score)|replace('.', ',') }}</div>
         {% endif %}
       </div>
     </div>
@@ -96,7 +103,7 @@
 {% else %}
 <div class="card" style="text-align:center;padding:3rem 1rem;">
   <div style="font-size:3rem;margin-bottom:0.75rem;">🔍</div>
-  {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status %}
+  {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status or filters.retired %}
     <p>No whiskies match your filters.</p>
     <a href="{{ url_for('collection') }}" class="btn btn-ghost" style="margin-top:1rem;">Clear filters</a>
   {% else %}

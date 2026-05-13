@@ -38,7 +38,7 @@
         <div class="chart-bar-track">
           <div class="chart-bar-fill" data-pct="{{ ((w.score / 10) * 100)|round|int }}"></div>
         </div>
-        <div class="chart-bar-score">{{ '%.1f'|format(w.score) }}</div>
+        <div class="chart-bar-score">{{ '%.1f'|format(w.score)|replace('.', ',') }}</div>
       </div>
     </a>
     {% endfor %}

@@ -31,6 +31,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   app. The database continues to store standard floating-point values and the
   API continues to return dot-decimal JSON — only the browser display changes.
 
+- **ABV, Price, and Score inputs now accept decimal commas** — fields previously
+  used `type="number"`, which the browser silently rejects when a comma is typed.
+  All three are now `type="text"` with `inputmode="decimal"` so the numeric
+  keyboard still appears on mobile, but both `8,5` and `8.5` are accepted.
+  Pre-filled values are shown with a comma to match the rest of the UI.
+
 ### Notes
 
 - No database changes. Drop in the updated files and reload.

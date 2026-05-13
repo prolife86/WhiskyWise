@@ -1,4 +1,4 @@
-<img src="Icons/whiskywise_website_icon.svg" alt="WhiskyWise" width="80" align="left" style="margin-right:16px"/>
+<img src="Icons/Icon 1.png" alt="WhiskyWise" width="80" align="left" style="margin-right:16px"/>
 
 # Whisky Wise - *Your Personal Spirits Guide*
 

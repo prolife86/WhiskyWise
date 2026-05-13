@@ -11,7 +11,7 @@ WhiskyWise lets you track your whisky collection, log detailed tasting notes,
 visualise flavour profiles with a radar chart, manage a wishlist, and export
 your data to CSV — all running locally inside Home Assistant.
 
-A native Android companion app is also available, connecting directly to your
+A native Android companion app ([GitHub][android-app]) is also available, connecting directly to your
 instance via the built-in REST API.
 
 ### Features

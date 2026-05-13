@@ -5,6 +5,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.8] — 2026-05-13 🔢 Comma Sense
+
+### Added
+
+- **Retired filter on the Collection page** — a new dropdown lets you include
+  or exclude retired bottles: *Retired & Non-retired* (default, shows all),
+  *Non-retired only*, or *Retired only*. Works alongside all existing filters
+  and persists across filter changes.
+
+- **"Updated" sort option on the Collection page** — sort by the last time a
+  bottle was modified, ascending (oldest change first) or descending (most
+  recently updated first). Useful for spotting stale entries or reviewing what
+  you edited last.
+
+### Changed
+
+- **Sort order: Name now listed before Distillery** in the Collection sort
+  dropdown. Name is the more common sort anchor; Distillery is immediately below
+  it. No functional change — both options remain available.
+
+- **Decimal commas everywhere in the web UI** — ABV, Price, and Score are now
+  displayed with a decimal comma (`8,5` / `€49,95` / `46,0%`) throughout the
+  Collection, Detail, Form, Wishlist, and Home pages, consistent with the Android
+  app. The database continues to store standard floating-point values and the
+  API continues to return dot-decimal JSON — only the browser display changes.
+
+### Notes
+
+- No database changes. Drop in the updated files and reload.
+- The Android app and JSON API are unaffected — they already used decimal dots
+  and continue to do so.
+
+---
+
 ## [1.5.7] — 2026-05-11 🗂 Sort Yourself Out
 
 ### Added

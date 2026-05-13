@@ -25,7 +25,7 @@
   </div>
   {% if w.score is not none %}
   <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;flex-shrink:0;">
-    <div class="score-badge large">{{ '%.1f'|format(w.score) }}</div>
+    <div class="score-badge large">{{ '%.1f'|format(w.score)|replace('.', ',') }}</div>
     <div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ash);">/ 10</div>
   </div>
   {% endif %}
@@ -85,7 +85,7 @@
     {% if w.price %}
     <div>
       <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Price</div>
-      <div style="font-size:1.1rem;color:var(--grain);">€{{ '%.2f'|format(w.price) }}</div>
+      <div style="font-size:1.1rem;color:var(--grain);">€{{ '%.2f'|format(w.price)|replace('.', ',') }}</div>
     </div>
     {% endif %}
     {% if w.store %}
@@ -144,7 +144,7 @@
         ('Distillery', w.distillery),
         ('Region',     w.region),
         ('Age',        w.age),
-        ('ABV',        (('%.1f'|format(w.abv)) ~ '%') if w.abv else None)
+        ('ABV',        (('%.1f'|format(w.abv)|replace('.', ',')) ~ '%') if w.abv else None)
     ] %}
     {% if val %}
     <div>

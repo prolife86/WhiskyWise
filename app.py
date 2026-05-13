@@ -1072,13 +1072,14 @@ def index():
 @app.route('/collection')
 @login_required
 def collection():
-    q             = request.args.get('q', '').strip()
-    flavor        = request.args.get('flavor', '')
-    min_score     = request.args.get('min_score', '')
-    max_price     = request.args.get('max_price', '')
-    status_filter = request.args.get('status', '')
-    sort          = request.args.get('sort', 'score')
-    order         = request.args.get('order', 'desc')
+    q              = request.args.get('q', '').strip()
+    flavor         = request.args.get('flavor', '')
+    min_score      = request.args.get('min_score', '')
+    max_price      = request.args.get('max_price', '')
+    status_filter  = request.args.get('status', '')
+    retired_filter = request.args.get('retired', '')   # '' | 'yes' | 'no'
+    sort           = request.args.get('sort', 'score')
+    order          = request.args.get('order', 'desc')
 
     query = Whisky.query.filter_by(user_id=current_user.id, wishlist=False)
     if q:
@@ -1099,12 +1100,17 @@ def collection():
             query = query.filter(Whisky.price <= v)
     if status_filter:
         query = query.filter(Whisky.status == status_filter)
+    if retired_filter == 'yes':
+        query = query.filter(Whisky.retired == True)
+    elif retired_filter == 'no':
+        query = query.filter(Whisky.retired == False)
 
     _SORT_COLS = {
-        'distillery': Whisky.distillery,
         'name':       Whisky.name,
+        'distillery': Whisky.distillery,
         'price':      Whisky.price,
         'score':      Whisky.score,
+        'updated':    Whisky.updated_at,
     }
     sort_col = _SORT_COLS.get(sort, Whisky.score)
     if order == 'asc':
@@ -1118,6 +1124,7 @@ def collection():
                            dominant_flavours=DOMINANT_FLAVOURS,
                            filters=dict(q=q, flavor=flavor, min_score=min_score,
                                         max_price=max_price, status=status_filter,
+                                        retired=retired_filter,
                                         sort=sort, order=order))
 
 

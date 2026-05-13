@@ -1,5 +1,5 @@
 name: "WhiskyWise"
-description: "Your personal spirits guide — tasting journal, collection management & wishlist."
+description: "Your personal spirits guide — tasting journal, collection management & wishlist"
 # NOTE: This field is managed automatically by the GitHub Actions sync-version job.
 # Do not edit it by hand — it will be overwritten on the next release.
 version: "1.5.8"

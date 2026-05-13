@@ -1,9 +1,15 @@
 # Home Assistant Add-on: WhiskyWise
 
-WhiskyWise is a self-hosted personal spirits guide. It lets you track your
-whisky collection, log detailed tasting notes, visualise flavour profiles with
-a radar chart, manage a wishlist, and export your data to CSV — all running
-locally inside Home Assistant with no cloud dependency.
+**WhiskyWise** is a self-hosted personal spirits guide built for enthusiasts who want to keep their collection data at home — no cloud, no subscriptions.
+
+### Features
+
+- 📖 **Tasting journal** — log detailed notes, scores, and flavour profiles for every dram
+- 🗃️ **Collection management** — track what's in your cabinet, including bottle levels and purchase details
+- 📡 **Radar chart** — visualise flavour profiles at a glance
+- 🛒 **Wishlist** — keep track of bottles you want to try or buy
+- 📤 **CSV export** — take your data with you anytime
+- 📱 **Android companion app** — connects directly to your instance via the built-in REST API
 
 ## Installation
 

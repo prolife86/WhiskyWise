@@ -24,8 +24,8 @@ The Flask session secret (SECRET_KEY) must be changed before starting the contai
   <PostArgs/>
   <CPUset/>
   <DateInstalled>1777818182</DateInstalled>
-  <DonateText>Help support my work by buying me a coffee<DonateText/>
-  <DonateLink>https://www.paypal.me/SonsyICT<DonateLink/>
+  <DonateText>Help support my work by buying me a coffee</DonateText>
+  <DonateLink>https://www.paypal.me/SonsyICT</DonateLink>
   <Requires/>
   <Config Name="App Data" Target="/data" Default="/mnt/user/appdata/WhiskyWise/" Mode="rw" Description="Always map the data directory to a local volume. &#13;&#10;If you delete the container without a volume mapping, you will lose your tasting history and collection data." Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/WhiskyWise/</Config>
   <Config Name="WebUI Port" Target="5000" Default="5000" Mode="tcp" Description="WebUI Port" Type="Port" Display="always" Required="false" Mask="false">5000</Config>

@@ -513,11 +513,12 @@ def save_photo(file, whisky_id, slot):
 
 def _float_or_none(val):
     """Convert form string to float, returning None for empty/missing values.
+    Accepts both decimal point ('8.5') and decimal comma ('8,5').
     Correctly handles '0' and '0.0' as valid zero scores."""
     if val is None or str(val).strip() == '':
         return None
     try:
-        return float(val)
+        return float(str(val).strip().replace(',', '.'))
     except (ValueError, TypeError):
         return None
 

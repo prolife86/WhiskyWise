@@ -19,7 +19,7 @@ The Flask session secret (SECRET_KEY) must be changed before starting the contai
   <Category>Productivity:</Category>
   <WebUI>http://[IP]:[PORT:5000]</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/prolife86/WhiskyWise/refs/heads/main/Icons/Icon%201.png</Icon>
+  <Icon>https://raw.githubusercontent.com/prolife86/WhiskyWise/refs/heads/main/Icons/logo.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>

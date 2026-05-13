@@ -1,6 +1,6 @@
 # Home Assistant Add-on: WhiskyWise
 
-![Version][version-shield]  ![Project Maintenance][maintenance-shield]
+[![Releases][release-shield]][releases] ![Project Maintenance][maintenance-shield]
 
 **WhiskyWise** is a self-hosted personal spirits guide built for enthusiasts
 who want to keep their collection data at home — no cloud, no subscriptions.
@@ -24,4 +24,5 @@ instance via the built-in REST API.
 - 📱 **Android companion app** — connects directly to your instance via the built-in REST API
 
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg
-[version-shield]: https://img.shields.io/badge/version-{{ version }}-blue.svg
+[release-shield]: https://img.shields.io/github/v/release/prolife86/WhiskyWise?color=blue
+[releases]: https://github.com/prolife86/WhiskyWise/releases

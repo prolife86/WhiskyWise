@@ -1554,19 +1554,21 @@ def api_collection():
         flavor      — exact dominant flavour match (see /api/v1/stats for full list)
         min_score   — float, inclusive lower bound on score
         max_price   — float, inclusive upper bound on price
-        status      — 'open' | 'stashed' | 'retired'
-        sort        — 'score' (default) | 'name' | 'added' | 'price'
+        status      — 'open' | 'stashed' | 'finished'
+        retired     — 'yes' | 'no' (omit to return all)
+        sort        — 'score' (default) | 'name' | 'distillery' | 'added' | 'price' | 'updated'
         order       — 'desc' (default) | 'asc'
         limit       — int, max results (default 200, max 500)
         offset      — int, pagination offset (default 0)
     """
-    q             = request.args.get('q', '').strip()
-    flavor        = request.args.get('flavor', '')
-    min_score     = request.args.get('min_score', '')
-    max_price     = request.args.get('max_price', '')
-    status_filter = request.args.get('status', '')
-    sort          = request.args.get('sort', 'score')
-    order         = request.args.get('order', 'desc')
+    q              = request.args.get('q', '').strip()
+    flavor         = request.args.get('flavor', '')
+    min_score      = request.args.get('min_score', '')
+    max_price      = request.args.get('max_price', '')
+    status_filter  = request.args.get('status', '')
+    retired_filter = request.args.get('retired', '')   # '' | 'yes' | 'no'
+    sort           = request.args.get('sort', 'score')
+    order          = request.args.get('order', 'desc')
     try:
         limit  = min(int(request.args.get('limit',  200)), 500)
         offset = max(int(request.args.get('offset', 0)),   0)
@@ -1592,10 +1594,18 @@ def api_collection():
             query = query.filter(Whisky.price <= v)
     if status_filter:
         query = query.filter(Whisky.status == status_filter)
+    if retired_filter == 'yes':
+        query = query.filter(Whisky.retired == True)
+    elif retired_filter == 'no':
+        query = query.filter(Whisky.retired == False)
 
     sort_col = {
-        'score': Whisky.score, 'name': Whisky.name,
-        'added': Whisky.created_at, 'price': Whisky.price,
+        'score':      Whisky.score,
+        'name':       Whisky.name,
+        'distillery': Whisky.distillery,
+        'added':      Whisky.created_at,
+        'price':      Whisky.price,
+        'updated':    Whisky.updated_at,
     }.get(sort, Whisky.score)
     if order == 'asc':
         query = query.order_by(sort_col.asc().nullslast())

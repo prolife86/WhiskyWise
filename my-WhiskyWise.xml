@@ -2,7 +2,7 @@
 <Container version="2">
   <Name>WhiskyWise</Name>
   <Repository>ghcr.io/prolife86/whiskywise:latest</Repository>
-  <Registry>https://github.com/prolife86/WhiskyWise</Registry>
+  <Registry>https://hub.docker.com/r/heisenbugger86/whiskywise</Registry>
   <Network>host</Network>
   <MyIP/>
   <Shell>sh</Shell>

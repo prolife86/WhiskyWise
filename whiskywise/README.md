@@ -23,7 +23,13 @@ instance via the built-in REST API.
 - 📤 **CSV export** — take your data with you anytime
 - 📱 **Android companion app** — connects directly to your instance via the built-in REST API ([GitHub][android-app])
 
+## Feedback
+
+Comments, ideas, and feedback are much appreciated! Feel free to open an issue
+or start a discussion over on [GitHub][whiskywise].
+
 [android-app]: https://github.com/prolife86/WhiskyWise-app
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg
 [release-shield]: https://img.shields.io/github/v/release/prolife86/WhiskyWise?color=blue
 [releases]: https://github.com/prolife86/WhiskyWise/releases
+[whiskywise]: https://github.com/prolife86/WhiskyWise

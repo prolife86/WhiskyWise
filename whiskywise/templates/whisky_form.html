@@ -36,7 +36,7 @@
     </div>
     <div class="form-group">
       <label>ABV (%)</label>
-      <input type="number" name="abv" value="{{ whisky.abv if whisky else '' }}" step="0.1" min="0" max="100" placeholder="46.0">
+      <input type="text" inputmode="decimal" name="abv" value="{{ ('%.1f'|format(whisky.abv))|replace('.', ',') if whisky and whisky.abv is not none else '' }}" placeholder="46,0">
     </div>
     <div class="form-group">
       <label>Barcode</label>
@@ -62,7 +62,7 @@
     </div>
     <div class="form-group">
       <label>Price (€)</label>
-      <input type="number" name="price" value="{{ whisky.price if whisky else '' }}" step="0.01" min="0" placeholder="e.g. 49.95">
+      <input type="text" inputmode="decimal" name="price" value="{{ ('%.2f'|format(whisky.price))|replace('.', ',') if whisky and whisky.price is not none else '' }}" placeholder="bv. 49,95">
     </div>
     <div class="form-group">
       <label>Store / Source</label>
@@ -98,9 +98,9 @@
       <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
     </div>
     <div style="display:flex;gap:0.5rem;margin-top:0.75rem;align-items:center;">
-      <input type="number" id="score-manual" min="0" max="10" step="0.1"
-             value="{{ '%.1f'|format(whisky.score) if whisky and whisky.score is not none else '' }}"
-             placeholder="Type a score 0–10"
+      <input type="text" inputmode="decimal" id="score-manual"
+             value="{{ '%.1f'|format(whisky.score)|replace('.', ',') if whisky and whisky.score is not none else '' }}"
+             placeholder="Typ een score 0–10"
              oninput="onManual(this.value)"
              style="flex:1;background:rgba(44,31,14,0.8);border:1px solid rgba(200,131,42,0.25);
                     border-radius:6px;color:var(--grain);padding:0.5rem 0.75rem;
@@ -304,7 +304,7 @@ function onSlider(val) {
 }
 
 function onManual(val) {
-  const v = parseFloat(val);
+  const v = parseFloat(val.replace(',', '.'));
   if (!isNaN(v) && v >= 0 && v <= 10) {
     scoreHidden.value        = v.toFixed(1);
     scoreDisplay.textContent = v.toFixed(1).replace('.', ',');

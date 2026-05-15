@@ -57,46 +57,80 @@
   </div>
 </form>
 
-<p style="font-size:0.82rem;color:var(--ash);margin:0.75rem 0 1rem;">
-  {{ whiskies|length }} bottle{{ 's' if whiskies|length != 1 }}
-  {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status or filters.retired %}
-  matching filters
+<!-- Bulk action toolbar — hidden until at least one checkbox is ticked -->
+<form method="POST" action="{{ url_for('bulk_delete') }}" id="bulk-form" style="display:none;margin-top:0.75rem;">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  <div style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.9rem;
+              background:rgba(139,38,53,0.12);border:1px solid rgba(139,38,53,0.3);
+              border-radius:var(--radius-sm);" id="bulk-bar">
+    <span id="bulk-count" style="font-family:'DM Mono',monospace;font-size:0.82rem;color:#E06070;flex:1;">
+      0 selected
+    </span>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="clearSelection()">✕ Deselect all</button>
+    <button type="submit" class="btn btn-danger btn-sm"
+            onclick="return confirm('Permanently delete the selected whiskies?')">
+      🗑 Delete selected
+    </button>
+  </div>
+  <!-- Selected IDs injected here by JS -->
+  <div id="bulk-inputs"></div>
+</form>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin:0.75rem 0 1rem;">
+  <p style="font-size:0.82rem;color:var(--ash);margin:0;">
+    {{ whiskies|length }} bottle{{ 's' if whiskies|length != 1 }}
+    {% if filters.q or filters.flavor or filters.min_score or filters.max_price or filters.status or filters.retired %}
+    matching filters
+    {% endif %}
+  </p>
+  {% if whiskies %}
+  <button type="button" class="btn btn-ghost btn-sm" id="select-all-btn" onclick="toggleSelectAll()">☑ Select all</button>
   {% endif %}
-</p>
+</div>
 
 {% if whiskies %}
-<div class="whisky-grid">
+<div class="whisky-grid" id="whisky-grid">
 {% for w in whiskies %}
-<a href="{{ url_for('whisky_detail', wid=w.id) }}" class="whisky-card">
-  <div class="whisky-card-thumb">
-    {% if w.photo_front %}
-      <img src="{{ url_for('serve_photo', filename=w.photo_front) }}" alt="{{ w.name }}" loading="lazy">
-    {% else %}
-      <span class="no-photo">🥃</span>
-    {% endif %}
-  </div>
-  <div class="whisky-card-body">
-    <div class="whisky-card-name">{{ w.name }}</div>
-    {% if w.distillery %}
-      <div class="whisky-card-distillery">{{ w.distillery }}{% if w.region %} · {{ w.region }}{% endif %}</div>
-    {% endif %}
-    <div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem;align-items:center;">
-      {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile|capitalize }}</span>{% endif %}
-      {% if w.retired %}<span class="status-pill status-retired">retired</span>{% endif %}
+<div class="whisky-card-wrapper" data-id="{{ w.id }}" style="position:relative;">
+  <!-- Checkbox overlay — visible on hover or when any box is checked -->
+  <label class="bulk-check-label" title="Select for bulk action"
+         style="position:absolute;top:8px;left:8px;z-index:10;
+                opacity:0;transition:opacity 0.15s;cursor:pointer;">
+    <input type="checkbox" class="bulk-check" value="{{ w.id }}"
+           onchange="onCheckChange()"
+           style="width:18px;height:18px;accent-color:var(--amber);cursor:pointer;">
+  </label>
+  <a href="{{ url_for('whisky_detail', wid=w.id) }}" class="whisky-card">
+    <div class="whisky-card-thumb">
+      {% if w.photo_front %}
+        <img src="{{ url_for('serve_photo', filename=w.photo_front) }}" alt="{{ w.name }}" loading="lazy">
+      {% else %}
+        <span class="no-photo">🥃</span>
+      {% endif %}
     </div>
-    <div class="whisky-card-footer">
-      <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
-      <div style="display:flex;align-items:center;gap:0.5rem;">
-        {% if w.price %}
-          <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">€{{ '%.2f'|format(w.price)|replace('.', ',') }}</span>
-        {% endif %}
-        {% if w.score is not none %}
-          <div class="score-badge small">{{ '%.1f'|format(w.score)|replace('.', ',') }}</div>
-        {% endif %}
+    <div class="whisky-card-body">
+      <div class="whisky-card-name">{{ w.name }}</div>
+      {% if w.distillery %}
+        <div class="whisky-card-distillery">{{ w.distillery }}{% if w.region %} · {{ w.region }}{% endif %}</div>
+      {% endif %}
+      <div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem;align-items:center;">
+        {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile|capitalize }}</span>{% endif %}
+        {% if w.retired %}<span class="status-pill status-retired">retired</span>{% endif %}
+      </div>
+      <div class="whisky-card-footer">
+        <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          {% if w.price %}
+            <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">€{{ '%.2f'|format(w.price)|replace('.', ',') }}</span>
+          {% endif %}
+          {% if w.score is not none %}
+            <div class="score-badge small">{{ '%.1f'|format(w.score)|replace('.', ',') }}</div>
+          {% endif %}
+        </div>
       </div>
     </div>
-  </div>
-</a>
+  </a>
+</div>
 {% endfor %}
 </div>
 
@@ -113,8 +147,20 @@
 </div>
 {% endif %}
 
+<style>
+/* Show checkbox on card hover, or when any selection is active */
+.whisky-card-wrapper:hover .bulk-check-label,
+.bulk-mode .bulk-check-label { opacity: 1 !important; }
+.whisky-card-wrapper.selected .bulk-check-label { opacity: 1 !important; }
+.whisky-card-wrapper.selected .whisky-card {
+  border-color: rgba(200,131,42,0.7);
+  box-shadow: 0 0 0 2px rgba(200,131,42,0.35);
+}
+</style>
+
 <script>
 (function(){
+  // ── Sort select ───────────────────────────────────────────────────────────
   var sel = document.getElementById('sort-select');
   var sortHidden  = document.getElementById('sort-hidden');
   var orderHidden = document.getElementById('order-hidden');
@@ -125,6 +171,97 @@
     orderHidden.value = parts[1];
     document.getElementById('filter-form').submit();
   });
+
+  // ── Bulk delete ───────────────────────────────────────────────────────────
+  var grid       = document.getElementById('whisky-grid');
+  var bulkForm   = document.getElementById('bulk-form');
+  var bulkInputs = document.getElementById('bulk-inputs');
+  var bulkCount  = document.getElementById('bulk-count');
+  var selAllBtn  = document.getElementById('select-all-btn');
+  var allSelected = false;
+
+  window.onCheckChange = function() {
+    var checked = document.querySelectorAll('.bulk-check:checked');
+    var total   = document.querySelectorAll('.bulk-check');
+    // Update wrapper highlight
+    document.querySelectorAll('.whisky-card-wrapper').forEach(function(w) {
+      var cb = w.querySelector('.bulk-check');
+      w.classList.toggle('selected', cb && cb.checked);
+    });
+    // Toggle bulk-mode (shows all checkboxes when any is checked)
+    if (grid) grid.classList.toggle('bulk-mode', checked.length > 0);
+    // Show/hide bar
+    bulkForm.style.display = checked.length > 0 ? 'block' : 'none';
+    bulkCount.textContent  = checked.length + ' selected';
+    // Rebuild hidden inputs
+    bulkInputs.innerHTML = '';
+    checked.forEach(function(cb) {
+      var inp = document.createElement('input');
+      inp.type  = 'hidden';
+      inp.name  = 'ids';
+      inp.value = cb.value;
+      bulkInputs.appendChild(inp);
+    });
+    // Update select-all button label
+    if (selAllBtn) {
+      allSelected = (checked.length === total.length && total.length > 0);
+      selAllBtn.textContent = allSelected ? '☐ Deselect all' : '☑ Select all';
+    }
+  };
+
+  window.clearSelection = function() {
+    document.querySelectorAll('.bulk-check').forEach(function(cb) { cb.checked = false; });
+    window.onCheckChange();
+  };
+
+  window.toggleSelectAll = function() {
+    var cbs = document.querySelectorAll('.bulk-check');
+    allSelected = !allSelected;
+    cbs.forEach(function(cb) { cb.checked = allSelected; });
+    window.onCheckChange();
+  };
+
+  // ── Barcode scan → "not found" prompt ────────────────────────────────────
+  // Override handleBarcode for the search field to add the "add?" prompt
+  var _origHandleBarcode = window.handleBarcode;
+  window.handleBarcode = function(code) {
+    if (!code) return;
+    // If this is the collection search bar, check the API first
+    if (window._scanTarget === 'search-q' || (typeof scanTarget !== 'undefined' && scanTarget === 'search-q')) {
+      stopScanner();
+      closeScanModal();
+      fetch('/api/barcode-lookup?code=' + encodeURIComponent(code))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.found) {
+            // Existing bottle — go straight to it
+            window.location.href = '/whisky/' + d.id;
+          } else {
+            // Not found — offer to add
+            if (confirm('Barcode not found in your collection.\n\nAdd a new whisky with this barcode pre-filled?')) {
+              window.location.href = '{{ url_for("new_whisky") }}?barcode=' + encodeURIComponent(code);
+            } else {
+              // Fall back to search
+              var el = document.getElementById('search-q');
+              if (el) {
+                el.value = code;
+                document.getElementById('filter-form').submit();
+              }
+            }
+          }
+        })
+        .catch(function() {
+          // Network error — just search
+          var el = document.getElementById('search-q');
+          if (el) {
+            el.value = code;
+            document.getElementById('filter-form').submit();
+          }
+        });
+      return;
+    }
+    if (_origHandleBarcode) _origHandleBarcode(code);
+  };
 })();
 </script>
 {% endblock %}

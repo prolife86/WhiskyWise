@@ -37,6 +37,11 @@
 {% for w in items %}
 <div class="wish-card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
+    {% if w.photo_front %}
+    <img src="{{ url_for('serve_photo', filename=w.photo_front) }}"
+         alt="{{ w.name }}"
+         style="width:56px;height:56px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0;border:1px solid rgba(200,131,42,0.2);">
+    {% endif %}
     <div style="flex:1;min-width:0;">
       <div class="wish-card-title">{{ w.name }}</div>
       <div class="wish-card-meta">

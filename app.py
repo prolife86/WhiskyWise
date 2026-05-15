@@ -1268,6 +1268,7 @@ def bulk_delete():
 
 
 
+@app.route('/whisky/new-wishlist', methods=['GET', 'POST'])
 @login_required
 def new_wishlist_item():
     if request.method == 'POST':

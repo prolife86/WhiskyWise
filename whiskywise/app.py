@@ -1314,7 +1314,7 @@ def edit_wishlist_item(wid):
 
 # ── API ───────────────────────────────────────────────────────────────────────
 @app.route('/api/barcode-lookup')
-@login_required
+@api_login_required
 def barcode_lookup():
     code = request.args.get('code', '').strip()
     if not code:

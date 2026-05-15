@@ -729,6 +729,9 @@ def _fill_whisky_from_json(w, data):
     if 'flavor_profile' in data: w.flavor_profile  = _str_or_none(data['flavor_profile'], 50)
     if 'score'          in data: w.score           = _float_or_none(data['score'])
     if 'wishlist_notes' in data: w.wishlist_notes  = _str_or_none(data['wishlist_notes'], 4000)
+    # Allow promoting a wishlist item to the collection (or vice versa) via the API.
+    if 'wishlist' in data and isinstance(data['wishlist'], bool):
+        w.wishlist = data['wishlist']
     # Last tasted date
     if 'last_tasted' in data:
         _lt = data['last_tasted']

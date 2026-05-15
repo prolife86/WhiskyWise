@@ -3,7 +3,7 @@ import re
 import csv
 import io
 import secrets
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date as date_type
 from functools import wraps
 from urllib.parse import urlparse
 from flask import (Flask, render_template, request, redirect, url_for,
@@ -364,6 +364,7 @@ class Whisky(db.Model):
     photo_barcode  = db.Column(db.String(300))
     wishlist       = db.Column(db.Boolean, default=False)
     wishlist_notes = db.Column(db.Text)
+    last_tasted    = db.Column(db.Date, nullable=True)
     created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -544,6 +545,15 @@ def _fill_whisky(w, form):
     w.flavor_profile = form.get('flavor_profile', '').strip()[:50]
     w.score          = _float_or_none(form.get('score'))
     w.wishlist_notes = form.get('wishlist_notes', '').strip()[:4000]
+    # Last tasted date — stored as a date object, accepts YYYY-MM-DD from date input
+    _lt = form.get('last_tasted', '').strip()
+    if _lt:
+        try:
+            w.last_tasted = date_type.fromisoformat(_lt)
+        except ValueError:
+            pass
+    else:
+        w.last_tasted = None
     # Radar axes — clamp to 0–5
     for axis in ('woody', 'smoky', 'cereal', 'floral', 'fruity', 'medicinal', 'fiery'):
         val = _float_or_none(form.get(f'radar_{axis}'))
@@ -670,6 +680,7 @@ def _whisky_to_dict(w):
         },
         'wishlist':       w.wishlist,
         'wishlist_notes': w.wishlist_notes,
+        'last_tasted':    w.last_tasted.isoformat() if w.last_tasted else None,
         'photo_front':    photo_url(w.photo_front),
         'photo_back':     photo_url(w.photo_back),
         'photo_cask':     photo_url(w.photo_cask),
@@ -718,6 +729,16 @@ def _fill_whisky_from_json(w, data):
     if 'flavor_profile' in data: w.flavor_profile  = _str_or_none(data['flavor_profile'], 50)
     if 'score'          in data: w.score           = _float_or_none(data['score'])
     if 'wishlist_notes' in data: w.wishlist_notes  = _str_or_none(data['wishlist_notes'], 4000)
+    # Last tasted date
+    if 'last_tasted' in data:
+        _lt = data['last_tasted']
+        if _lt is None:
+            w.last_tasted = None
+        else:
+            try:
+                w.last_tasted = date_type.fromisoformat(str(_lt)[:10])
+            except ValueError:
+                pass
     # Radar axes — accept either a nested dict {"radar": {"smoky": 3, ...}}
     # or flat keys {"radar_smoky": 3, ...}.  Values are clamped to 0–5.
     radar_data = data.get('radar', {})
@@ -793,6 +814,16 @@ def _init_db():
             except Exception as exc:
                 conn.rollback()
                 print(f"[WhiskyWise] WARNING: api_token migration failed: {exc}")
+            # Migrate whisky table — add last_tasted if missing
+            try:
+                whisky_cols = [row[1] for row in cur.execute('PRAGMA table_info("whisky")').fetchall()]
+                if 'last_tasted' not in whisky_cols:
+                    cur.execute('ALTER TABLE "whisky" ADD COLUMN last_tasted DATE')
+                    conn.commit()
+                    print("[WhiskyWise] Migrated DB: added last_tasted to whisky.")
+            except Exception as exc:
+                conn.rollback()
+                print(f"[WhiskyWise] WARNING: last_tasted migration failed: {exc}")
         finally:
             conn.close()
         db.session.expire_all()
@@ -1060,13 +1091,15 @@ def index():
              .filter(Whisky.score.isnot(None))
              .order_by(Whisky.score.desc())
              .limit(10).all())
-    total         = Whisky.query.filter_by(user_id=current_user.id, wishlist=False).count()
-    open_count    = Whisky.query.filter_by(user_id=current_user.id, status='open', wishlist=False).count()
-    stashed_count = Whisky.query.filter_by(user_id=current_user.id, status='stashed', wishlist=False).count()
-    wishlist_count = Whisky.query.filter_by(user_id=current_user.id, wishlist=True).count()
+    total           = Whisky.query.filter_by(user_id=current_user.id, wishlist=False).count()
+    open_count      = Whisky.query.filter_by(user_id=current_user.id, status='open',     wishlist=False).count()
+    stashed_count   = Whisky.query.filter_by(user_id=current_user.id, status='stashed',  wishlist=False).count()
+    finished_count  = Whisky.query.filter_by(user_id=current_user.id, status='finished', wishlist=False).count()
+    wishlist_count  = Whisky.query.filter_by(user_id=current_user.id, wishlist=True).count()
     return render_template('index.html',
                            top10=top10, total=total,
                            open_count=open_count, stashed=stashed_count,
+                           finished_count=finished_count,
                            wishlist_count=wishlist_count)
 
 
@@ -1165,7 +1198,10 @@ def new_whisky():
         db.session.commit()
         flash('Whisky added!', 'success')
         return redirect(url_for('whisky_detail', wid=w.id))
-    return render_template('whisky_form.html', whisky=None, dominant_flavours=DOMINANT_FLAVOURS)
+    prefill_barcode = request.args.get('barcode', '')
+    return render_template('whisky_form.html', whisky=None,
+                           dominant_flavours=DOMINANT_FLAVOURS,
+                           prefill_barcode=prefill_barcode)
 
 
 @app.route('/whisky/<int:wid>')
@@ -1200,7 +1236,38 @@ def delete_whisky(wid):
     return redirect(url_for('wishlist') if was_wishlist else url_for('collection'))
 
 
-@app.route('/whisky/new-wishlist', methods=['GET', 'POST'])
+@app.route('/whisky/bulk-delete', methods=['POST'])
+@login_required
+def bulk_delete():
+    """Delete multiple whiskies at once.
+
+    Expects one or more 'ids' form fields containing integer whisky IDs.
+    Only deletes entries that belong to the current user.
+    """
+    raw_ids = request.form.getlist('ids')
+    ids = []
+    for r in raw_ids:
+        try:
+            ids.append(int(r))
+        except (ValueError, TypeError):
+            pass
+    if not ids:
+        flash('No whiskies selected.', 'error')
+        return redirect(url_for('collection'))
+
+    deleted = 0
+    for wid in ids:
+        w = Whisky.query.filter_by(id=wid, user_id=current_user.id).first()
+        if w:
+            _delete_all_photos(w)
+            db.session.delete(w)
+            deleted += 1
+    db.session.commit()
+    flash(f'Deleted {deleted} whisky{"" if deleted == 1 else "ies"}.', 'info')
+    return redirect(url_for('collection'))
+
+
+
 @login_required
 def new_wishlist_item():
     if request.method == 'POST':
@@ -1213,7 +1280,26 @@ def new_wishlist_item():
     return render_template('wishlist_form.html')
 
 
-@app.route('/whisky/<int:wid>/edit-wishlist', methods=['GET', 'POST'])
+@app.route('/whisky/<int:wid>/promote', methods=['POST'])
+@login_required
+def promote_to_collection(wid):
+    """Promote a wishlist item to the main collection.
+
+    The user picks a status (stashed / open / finished) which is submitted
+    alongside the request.  All existing wishlist fields are preserved.
+    """
+    w = Whisky.query.filter_by(id=wid, user_id=current_user.id, wishlist=True).first_or_404()
+    _VALID_STATUSES = {'stashed', 'open', 'finished'}
+    raw_status = request.form.get('status', 'stashed')
+    w.status   = raw_status if raw_status in _VALID_STATUSES else 'stashed'
+    w.wishlist  = False
+    w.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash(f'"{w.name}" moved to your collection as {w.status}.', 'success')
+    return redirect(url_for('whisky_detail', wid=w.id))
+
+
+
 @login_required
 def edit_wishlist_item(wid):
     w = Whisky.query.filter_by(id=wid, user_id=current_user.id, wishlist=True).first_or_404()
@@ -1304,7 +1390,7 @@ def export_csv():
     writer.writerow(['Name', 'Distillery', 'Region', 'Age', 'ABV', 'Barcode',
                      'Status', 'Retired', 'Price', 'Store',
                      'Dominant Flavour', 'Score',
-                     'Nose', 'Palate', 'Finish', 'Notes', 'Added'])
+                     'Nose', 'Palate', 'Finish', 'Notes', 'Last Tasted', 'Added'])
     for w in whiskies:
         writer.writerow([
             w.name, w.distillery, w.region, w.age, w.abv, w.barcode,
@@ -1312,6 +1398,7 @@ def export_csv():
             w.price, w.store,
             w.flavor_profile, w.score,
             w.nose, w.palate, w.finish, w.notes,
+            w.last_tasted.isoformat() if w.last_tasted else '',
             w.created_at.strftime('%Y-%m-%d'),
         ])
     output = io.BytesIO()
@@ -1320,7 +1407,101 @@ def export_csv():
     return send_file(output, mimetype='text/csv',
                      download_name='whiskywise_export.csv', as_attachment=True)
 
-# ── JSON API (mobile / third-party clients) ───────────────────────────────────
+@app.route('/import/csv', methods=['GET', 'POST'])
+@login_required
+def import_csv():
+    """Import whiskies from a CSV file.
+
+    Accepts the same column layout produced by /export/csv so users can
+    round-trip their data.  Unknown columns are silently ignored; missing
+    optional columns default to None/empty.  The Name column is required —
+    rows without a name are skipped.
+
+    Returns a summary flash message: how many rows were imported and how many
+    were skipped (with a reason breakdown).
+    """
+    if request.method == 'GET':
+        return render_template('import_csv.html')
+
+    f = request.files.get('csvfile')
+    if not f or not f.filename:
+        flash('No file selected.', 'error')
+        return redirect(url_for('import_csv'))
+    if not f.filename.lower().endswith('.csv'):
+        flash('Please upload a .csv file.', 'error')
+        return redirect(url_for('import_csv'))
+
+    # Read and decode — try UTF-8 with BOM first (our own export), fall back to latin-1
+    raw = f.read()
+    try:
+        text = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw.decode('latin-1', errors='replace')
+
+    reader = csv.DictReader(io.StringIO(text))
+    # Normalise header names: strip whitespace, lower-case
+    fieldnames = [h.strip().lower() for h in (reader.fieldnames or [])]
+
+    _STATUS_MAP = {'stashed': 'stashed', 'open': 'open', 'finished': 'finished'}
+
+    imported = 0
+    skipped  = 0
+    skip_reasons = []
+
+    for raw_row in reader:
+        # Re-key with normalised names
+        row = {k.strip().lower(): (v.strip() if v else '') for k, v in raw_row.items()}
+
+        name = row.get('name', '') or row.get('whisky name', '')
+        if not name:
+            skipped += 1
+            skip_reasons.append('missing name')
+            continue
+
+        w = Whisky(user_id=current_user.id, wishlist=False)
+        w.name           = name[:200]
+        w.distillery     = (row.get('distillery', '') or '')[:200] or None
+        w.region         = (row.get('region', '') or '')[:100] or None
+        w.age            = (row.get('age', '') or '')[:20] or None
+        w.abv            = _float_or_none(row.get('abv', ''))
+        w.barcode        = (row.get('barcode', '') or '')[:100] or None
+        raw_status       = (row.get('status', '') or '').lower()
+        w.status         = _STATUS_MAP.get(raw_status, 'stashed')
+        w.retired        = (row.get('retired', '') or '').lower() in ('yes', 'true', '1')
+        w.price          = _float_or_none(row.get('price', ''))
+        w.store          = (row.get('store', '') or '')[:200] or None
+        w.notes          = (row.get('notes', '') or '')[:4000] or None
+        w.nose           = (row.get('nose', '') or '')[:4000] or None
+        w.palate         = (row.get('palate', '') or '')[:4000] or None
+        w.finish         = (row.get('finish', '') or '')[:4000] or None
+        # Accept both old and new column header
+        fp = row.get('dominant flavour', '') or row.get('flavor profile', '') or row.get('dominant flavor', '')
+        w.flavor_profile = (fp or '')[:50] or None
+        w.score          = _float_or_none(row.get('score', ''))
+        # Last tasted date
+        _lt = row.get('last tasted', '') or row.get('last_tasted', '')
+        if _lt:
+            try:
+                w.last_tasted = date_type.fromisoformat(_lt[:10])
+            except ValueError:
+                pass
+        db.session.add(w)
+        imported += 1
+
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Import failed: {exc}', 'error')
+        return redirect(url_for('import_csv'))
+
+    msg = f'Imported {imported} whisky{"" if imported == 1 else "ies"}.'
+    if skipped:
+        msg += f' Skipped {skipped} row{"" if skipped == 1 else "s"} (no name).'
+    flash(msg, 'success')
+    return redirect(url_for('collection'))
+
+
 #
 # Authentication
 # --------------
@@ -1534,8 +1715,9 @@ def api_stats():
              .limit(10).all())
     return jsonify({'data': {
         'total':          Whisky.query.filter_by(user_id=current_user.id, wishlist=False).count(),
-        'open':           Whisky.query.filter_by(user_id=current_user.id, status='open',    wishlist=False).count(),
-        'stashed':        Whisky.query.filter_by(user_id=current_user.id, status='stashed', wishlist=False).count(),
+        'open':           Whisky.query.filter_by(user_id=current_user.id, status='open',     wishlist=False).count(),
+        'stashed':        Whisky.query.filter_by(user_id=current_user.id, status='stashed',  wishlist=False).count(),
+        'finished':       Whisky.query.filter_by(user_id=current_user.id, status='finished', wishlist=False).count(),
         'wishlist_count': Whisky.query.filter_by(user_id=current_user.id, wishlist=True).count(),
         'top10':          [_whisky_to_dict(w) for w in top10],
         'dominant_flavours': DOMINANT_FLAVOURS,

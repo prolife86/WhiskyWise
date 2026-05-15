@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Import CSV — WhiskyWise{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:1.25rem;">
+  <a href="{{ url_for('collection') }}" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">← Collection</a>
+  <h1 style="color:var(--grain);margin-top:0.3rem;">📥 Import from CSV</h1>
+</div>
+
+<div class="card" style="margin-bottom:1rem;max-width:640px;">
+  <div class="card-header"><h3>Upload CSV File</h3></div>
+  <p style="font-size:0.88rem;margin-bottom:1.25rem;">
+    Upload a CSV file to import whiskies into your collection. The file should use the same
+    column layout as the WhiskyWise CSV export — but only the <strong style="color:var(--grain);">Name</strong>
+    column is required. All other columns are optional and unknown columns are ignored.
+  </p>
+  <form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group" style="margin-bottom:1.25rem;">
+      <label>CSV File</label>
+      <input type="file" name="csvfile" accept=".csv" required
+             style="padding:0.5rem;cursor:pointer;">
+    </div>
+    <button type="submit" class="btn btn-primary">📥 Import</button>
+    <a href="{{ url_for('collection') }}" class="btn btn-ghost" style="margin-left:0.5rem;">Cancel</a>
+  </form>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <div class="card-header"><h3>ℹ Expected Column Format</h3></div>
+  <p style="font-size:0.85rem;color:var(--ash);margin-bottom:0.75rem;">
+    The importer recognises these column headers (case-insensitive). All are optional except Name.
+  </p>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:0.78rem;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.25);">
+          <th style="text-align:left;padding:0.4rem 0.75rem;color:var(--amber-light);">Column</th>
+          <th style="text-align:left;padding:0.4rem 0.75rem;color:var(--amber-light);">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for col, note in [
+          ('Name',            'Required. Max 200 characters.'),
+          ('Distillery',      'Optional.'),
+          ('Region',          'Optional.'),
+          ('Age',             'Optional. Text, e.g. "15" or "NAS".'),
+          ('ABV',             'Optional. Numeric, e.g. "46.0" or "46,0".'),
+          ('Barcode',         'Optional.'),
+          ('Status',          'Optional. One of: stashed, open, finished. Defaults to stashed.'),
+          ('Retired',         'Optional. "Yes" or "No".'),
+          ('Price',           'Optional. Numeric.'),
+          ('Store',           'Optional.'),
+          ('Dominant Flavour','Optional. Must match a known flavour profile.'),
+          ('Score',           'Optional. Numeric 0–10.'),
+          ('Nose',            'Optional. Free text.'),
+          ('Palate',          'Optional. Free text.'),
+          ('Finish',          'Optional. Free text.'),
+          ('Notes',           'Optional. Free text.'),
+          ('Last Tasted',     'Optional. Date in YYYY-MM-DD format.'),
+          ('Added',           'Ignored on import — server sets the creation date.'),
+        ] %}
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.08);">
+          <td style="padding:0.4rem 0.75rem;color:var(--grain);">{{ col }}</td>
+          <td style="padding:0.4rem 0.75rem;color:var(--ash);">{{ note }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:0.82rem;color:var(--smoke);margin-top:1rem;">
+    Tip: export your current collection first to see the exact format. Then use that file as a
+    template for importing new entries.
+  </p>
+</div>
+
+{% endblock %}

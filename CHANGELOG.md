@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.1] — 2026-05-15 📅 Sort by When You Last Poured
+
+### Added
+
+- **"Last Tasted" sort option on the Collection page** — the sort dropdown now includes
+  Last Tasted ↑ and Last Tasted ↓ alongside the existing Name, Distillery, Price, Score,
+  and Updated options. Bottles with no last tasted date sort last (`nullslast`). Available
+  in both the web UI and the API (`sort=last_tasted`).
+
+### Technical
+
+- `last_tasted` added to `_SORT_COLS` in the web collection route.
+- `last_tasted` added to the inline sort dict in `api_collection()`.
+- Two `<option>` elements added to `collection.html` sort dropdown.
+
+---
+
 ## [1.6.0] — 2026-05-15 📱 The App Gets What It Needs
 
 ### Fixed

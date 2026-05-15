@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.0] — 2026-05-15 📱 The App Gets What It Needs
+
+### Fixed
+
+- **`/api/barcode-lookup` now accepts Bearer tokens** — the route was decorated with
+  `@login_required` (Flask-Login session cookies, browser-only) instead of
+  `@api_login_required` (Bearer token + session cookie). Mobile app clients send a
+  Bearer token, not a session cookie, so the server was responding with a 401 on
+  every barcode scan from the app. The scanner appeared to do nothing — it silently
+  fell back to a text search with no feedback. Now works correctly for both the
+  Android app and the web scanner.
+
+---
+
 ## [1.5.9] — 2026-05-15 🛒 The Collection Edition
 
 ### Added

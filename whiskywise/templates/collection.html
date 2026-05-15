@@ -45,8 +45,10 @@
       <option value="price|desc"      {% if filters.sort=='price'      and filters.order=='desc' %}selected{% endif %}>Price ↓</option>
       <option value="score|asc"       {% if filters.sort=='score'      and filters.order=='asc'  %}selected{% endif %}>Score ↑</option>
       <option value="score|desc"      {% if filters.sort=='score'      and filters.order=='desc' %}selected{% endif %}>Score ↓</option>
-      <option value="updated|asc"     {% if filters.sort=='updated'    and filters.order=='asc'  %}selected{% endif %}>Updated ↑</option>
-      <option value="updated|desc"    {% if filters.sort=='updated'    and filters.order=='desc' %}selected{% endif %}>Updated ↓</option>
+      <option value="updated|asc"     {% if filters.sort=='updated'     and filters.order=='asc'  %}selected{% endif %}>Updated ↑</option>
+      <option value="updated|desc"    {% if filters.sort=='updated'     and filters.order=='desc' %}selected{% endif %}>Updated ↓</option>
+      <option value="last_tasted|asc"  {% if filters.sort=='last_tasted' and filters.order=='asc'  %}selected{% endif %}>Last Tasted ↑</option>
+      <option value="last_tasted|desc" {% if filters.sort=='last_tasted' and filters.order=='desc' %}selected{% endif %}>Last Tasted ↓</option>
     </select>
     <input type="hidden" name="sort"  id="sort-hidden"  value="{{ filters.sort }}">
     <input type="hidden" name="order" id="order-hidden" value="{{ filters.order }}">

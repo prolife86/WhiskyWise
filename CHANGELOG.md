@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.3] — 2026-05-15 🥃 Wishlist Knows More Now
+
+### Added
+
+- **Age and ABV fields on the Wishlist form** — both the Add to Wishlist and Edit
+  Wishlist pages now include Age and ABV fields alongside the existing Name, Distillery,
+  Region, Price, Store, Barcode, and Notes fields. The fields were already stored in the
+  database and served via the API; they were simply absent from the wishlist web form.
+
+---
+
 ## [1.6.2] — 2026-05-15 💾 Your Collection, Backed Up
 
 ### Added

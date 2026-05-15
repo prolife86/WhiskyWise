@@ -1403,6 +1403,8 @@ def new_wishlist_item():
         w = Whisky(user_id=current_user.id, wishlist=True)
         _fill_whisky(w, request.form)   # reuse shared field-filling logic
         db.session.add(w)
+        db.session.flush()              # get w.id before saving photo
+        _handle_photos(w, request.files)
         db.session.commit()
         flash('Added to wishlist!', 'success')
         return redirect(url_for('wishlist'))
@@ -1435,6 +1437,7 @@ def edit_wishlist_item(wid):
     w = Whisky.query.filter_by(id=wid, user_id=current_user.id, wishlist=True).first_or_404()
     if request.method == 'POST':
         _fill_whisky(w, request.form)   # reuse shared field-filling logic
+        _handle_photos(w, request.files)
         db.session.commit()
         flash('Wishlist item updated.', 'success')
         return redirect(url_for('wishlist'))

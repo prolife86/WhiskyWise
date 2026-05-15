@@ -3,6 +3,9 @@ import re
 import csv
 import io
 import secrets
+import shutil
+import tempfile
+import zipfile
 from datetime import datetime, timezone, timedelta, date as date_type
 from functools import wraps
 from urllib.parse import urlparse
@@ -1085,6 +1088,128 @@ def admin_delete_user(uid):
     flash(f'User "{username}" and all their data deleted.', 'info')
     return redirect(url_for('admin_panel'))
 
+
+@app.route('/admin/backup/download')
+@login_required
+@admin_required
+def admin_backup_download():
+    """Create and stream a ZIP archive containing the database and all photos.
+
+    The archive layout is:
+        backup/db/whiskywise.db
+        backup/uploads/<filename> ...
+
+    The filename encodes a UTC timestamp so multiple backups are easy to
+    distinguish: whiskywise-backup-YYYYMMDD-HHMMSS.zip
+    """
+    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
+    zip_name  = f'whiskywise-backup-{timestamp}.zip'
+
+    # Stream into a BytesIO buffer — avoids writing a temp file to disk.
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Database
+        if os.path.exists(db_path):
+            zf.write(db_path, arcname='backup/db/whiskywise.db')
+        # Photos
+        if os.path.isdir(upload_folder):
+            for fname in os.listdir(upload_folder):
+                fpath = os.path.join(upload_folder, fname)
+                if os.path.isfile(fpath):
+                    zf.write(fpath, arcname=f'backup/uploads/{fname}')
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=zip_name,
+        mimetype='application/zip',
+    )
+
+
+@app.route('/admin/backup/restore', methods=['POST'])
+@login_required
+@admin_required
+def admin_backup_restore():
+    """Restore the database and photos from an uploaded backup ZIP.
+
+    Safety rules:
+    - Only accepts .zip files produced by the backup route (must contain
+      backup/db/whiskywise.db).
+    - The existing database is backed up to a .bak file before being
+      replaced, so a failed restore can be recovered manually.
+    - Photos in the ZIP are extracted to the upload folder; existing photos
+      with the same filename are overwritten; photos NOT in the ZIP are left
+      alone (no photos are deleted).
+    - After a successful restore the active SQLAlchemy sessions are recycled
+      so the app immediately reads from the restored database.
+    """
+    f = request.files.get('backupfile')
+    if not f or not f.filename:
+        flash('No file selected.', 'error')
+        return redirect(url_for('admin_panel'))
+    if not f.filename.lower().endswith('.zip'):
+        flash('Please upload a .zip backup file.', 'error')
+        return redirect(url_for('admin_panel'))
+
+    raw = f.read()
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw))
+    except zipfile.BadZipFile:
+        flash('Invalid or corrupted ZIP file.', 'error')
+        return redirect(url_for('admin_panel'))
+
+    names = zf.namelist()
+    if 'backup/db/whiskywise.db' not in names:
+        flash('This does not look like a WhiskyWise backup — '
+              'backup/db/whiskywise.db not found inside the ZIP.', 'error')
+        return redirect(url_for('admin_panel'))
+
+    # ── Restore database ──────────────────────────────────────────────────────
+    # Save a safety copy of the current DB before overwriting.
+    bak_path = db_path + '.bak'
+    try:
+        if os.path.exists(db_path):
+            shutil.copy2(db_path, bak_path)
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        with open(db_path, 'wb') as out:
+            out.write(zf.read('backup/db/whiskywise.db'))
+    except Exception as exc:
+        flash(f'Database restore failed: {exc}', 'error')
+        return redirect(url_for('admin_panel'))
+
+    # ── Restore photos ────────────────────────────────────────────────────────
+    photo_count = 0
+    os.makedirs(upload_folder, exist_ok=True)
+    for name in names:
+        if name.startswith('backup/uploads/') and not name.endswith('/'):
+            fname = os.path.basename(name)
+            if not fname:
+                continue
+            dest = os.path.join(upload_folder, fname)
+            try:
+                with open(dest, 'wb') as out:
+                    out.write(zf.read(name))
+                photo_count += 1
+            except Exception:
+                pass  # best-effort; don't abort the whole restore for one photo
+
+    # ── Recycle DB connections ────────────────────────────────────────────────
+    # Dispose the connection pool so all future queries open fresh connections
+    # against the restored database file.
+    try:
+        db.engine.dispose()
+    except Exception:
+        pass
+
+    flash(
+        f'Restore complete — database replaced, {photo_count} photo'
+        f'{"s" if photo_count != 1 else ""} restored. '
+        f'A safety copy of the previous database was saved as whiskywise.db.bak.',
+        'success',
+    )
+    return redirect(url_for('admin_panel'))
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 @app.route('/')
 @login_required
@@ -1143,12 +1268,11 @@ def collection():
         query = query.filter(Whisky.retired == False)
 
     _SORT_COLS = {
-        'name':        Whisky.name,
-        'distillery':  Whisky.distillery,
-        'price':       Whisky.price,
-        'score':       Whisky.score,
-        'updated':     Whisky.updated_at,
-        'last_tasted': Whisky.last_tasted,
+        'name':       Whisky.name,
+        'distillery': Whisky.distillery,
+        'price':      Whisky.price,
+        'score':      Whisky.score,
+        'updated':    Whisky.updated_at,
     }
     sort_col = _SORT_COLS.get(sort, Whisky.score)
     if order == 'asc':
@@ -1788,13 +1912,12 @@ def api_collection():
         query = query.filter(Whisky.retired == False)
 
     sort_col = {
-        'score':       Whisky.score,
-        'name':        Whisky.name,
-        'distillery':  Whisky.distillery,
-        'added':       Whisky.created_at,
-        'price':       Whisky.price,
-        'updated':     Whisky.updated_at,
-        'last_tasted': Whisky.last_tasted,
+        'score':      Whisky.score,
+        'name':       Whisky.name,
+        'distillery': Whisky.distillery,
+        'added':      Whisky.created_at,
+        'price':      Whisky.price,
+        'updated':    Whisky.updated_at,
     }.get(sort, Whisky.score)
     if order == 'asc':
         query = query.order_by(sort_col.asc().nullslast())

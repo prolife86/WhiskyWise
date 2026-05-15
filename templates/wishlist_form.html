@@ -5,7 +5,7 @@
   <a href="{{ url_for('wishlist') }}" style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">← Wishlist</a>
   <h1 style="color:var(--grain);margin-top:0.3rem;">{% if item %}Edit Wishlist Item{% else %}Add to Wishlist{% endif %}</h1>
 </div>
-<form method="POST">
+<form method="POST" enctype="multipart/form-data">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 <div class="card">
   <div class="form-grid form-grid-2">
@@ -23,16 +23,6 @@
       <label>Region</label>
       <input type="text" name="region" placeholder="e.g. Islay"
              value="{{ item.region if item else '' }}">
-    </div>
-    <div class="form-group">
-      <label>Age</label>
-      <input type="text" name="age" placeholder="e.g. 12 or NAS"
-             value="{{ item.age if item else '' }}">
-    </div>
-    <div class="form-group">
-      <label>ABV (%)</label>
-      <input type="text" inputmode="decimal" name="abv" placeholder="e.g. 46,0"
-             value="{{ '%.1f'|format(item.abv)|replace('.', ',') if item and item.abv is not none else '' }}">
     </div>
     <div class="form-group">
       <label>Expected Price (€)</label>
@@ -55,6 +45,19 @@
     <div class="form-group" style="grid-column:1/-1;">
       <label>Notes / Why You Want It</label>
       <textarea name="wishlist_notes" placeholder="Why is this on your list? What have you heard about it?">{{ item.wishlist_notes if item else '' }}</textarea>
+    </div>
+    <div class="form-group" style="grid-column:1/-1;">
+      <label>Cover Photo <span style="font-weight:normal;color:var(--ash);font-size:0.8rem;">(optional — becomes Front Label photo when moved to collection)</span></label>
+      <div class="photo-grid" style="grid-template-columns:repeat(1,1fr);max-width:200px;">
+        <div class="photo-slot" id="slot-front">
+          {% if item and item.photo_front %}
+            <img src="{{ url_for('serve_photo', filename=item.photo_front) }}" alt="Cover" id="preview-front">
+          {% else %}
+            <span class="photo-slot-placeholder">📷</span>
+          {% endif %}
+          <input type="file" name="photo_front" accept="image/*" capture="environment" onchange="previewPhoto(this,'front')">
+        </div>
+      </div>
     </div>
   </div>
 </div>

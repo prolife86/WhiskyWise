@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.4] — 2026-05-15 📸 Wishlist Gets a Face
+
+### Added
+
+- **Cover photo on the Wishlist form** — a single photo slot has been added to both
+  the Add to Wishlist and Edit Wishlist pages. The photo is stored as `photo_front`
+  and becomes the Front Label photo automatically when the item is promoted to the
+  collection. The photo also appears as a thumbnail on the Wishlist list page.
+
+### Technical
+
+- `new_wishlist_item()`: added `db.session.flush()` before commit to generate the
+  row ID, then calls `_handle_photos()` to save the uploaded file.
+- `edit_wishlist_item()`: calls `_handle_photos()` after `_fill_whisky()`.
+- `wishlist_form.html`: form tag updated to `enctype="multipart/form-data"`; single
+  `photo_front` file input added below Wishlist Notes.
+- `wishlist.html`: cover photo thumbnail shown on each wishlist card when present.
+
+### Notes
+
+- No database changes.
+- No Docker changes.
+
+---
+
 ## [1.6.3] — 2026-05-15 🥃 Wishlist Knows More Now
 
 ### Added

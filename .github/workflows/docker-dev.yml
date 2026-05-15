@@ -21,8 +21,7 @@ on:
         default: ''
 
 env:
-  REGISTRY:   ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: ghcr.io
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -61,14 +60,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
+      - name: Lowercase repository
+        id: repo
+        run: |
+          echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Build and push :dev image
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev-${{ steps.sha.outputs.short }}
+            ${{ env.REGISTRY }}/${{ steps.repo.outputs.repo }}:dev
+            ${{ env.REGISTRY }}/${{ steps.repo.outputs.repo }}:dev-${{ steps.sha.outputs.short }}
             ${{ secrets.DOCKERHUB_USERNAME }}/whiskywise:dev
             ${{ secrets.DOCKERHUB_USERNAME }}/whiskywise:dev-${{ steps.sha.outputs.short }}
           build-args: |
@@ -84,7 +88,7 @@ jobs:
           echo "**SHA:** \`${{ steps.sha.outputs.short }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev" >> "$GITHUB_STEP_SUMMARY"
+          echo "docker pull ${{ env.REGISTRY }}/${{ steps.repo.outputs.repo }}:dev" >> "$GITHUB_STEP_SUMMARY"
           echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/whiskywise:dev" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

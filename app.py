@@ -1300,6 +1300,7 @@ def promote_to_collection(wid):
 
 
 
+@app.route('/whisky/<int:wid>/edit-wishlist', methods=['GET', 'POST'])
 @login_required
 def edit_wishlist_item(wid):
     w = Whisky.query.filter_by(id=wid, user_id=current_user.id, wishlist=True).first_or_404()

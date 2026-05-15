@@ -8,7 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.6.0] — 2026-05-15 📱 The App Gets What It Needs
 
 ### Fixed
-
+ 
 - **`/api/barcode-lookup` now accepts Bearer tokens** — the route was decorated with
   `@login_required` (Flask-Login session cookies, browser-only) instead of
   `@api_login_required` (Bearer token + session cookie). Mobile app clients send a
@@ -16,6 +16,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   every barcode scan from the app. The scanner appeared to do nothing — it silently
   fell back to a text search with no feedback. Now works correctly for both the
   Android app and the web scanner.
+- **`_fill_whisky_from_json` now handles the `wishlist` field** — the Android app's
+  "Move to Collection" action sends `"wishlist": false` in the PUT body. The server
+  accepted the request, updated all other fields, and returned 200 — but silently
+  ignored the `wishlist` flag, leaving the item on the wishlist. The item appeared to
+  move (the app said "Moved to collection") but was never actually promoted. Added
+  `if 'wishlist' in data and isinstance(data['wishlist'], bool): w.wishlist = data['wishlist']`
+  to `_fill_whisky_from_json`. The `isinstance` guard ensures only a real boolean can
+  flip the flag.
 
 ---
 

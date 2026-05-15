@@ -87,4 +87,50 @@
   </div>
 </div>
 
+<!-- Backup & Restore -->
+<div class="card" style="margin-top:1.5rem;">
+  <div class="card-header"><h3>💾 Backup & Restore</h3></div>
+  <p style="font-size:0.88rem;color:var(--ash);margin-bottom:1.25rem;">
+    The backup contains the full database and all uploaded photos in a single ZIP file.
+    Restoring will replace the current database and overwrite any matching photos.
+    A safety copy of the previous database (<code>whiskywise.db.bak</code>) is kept on disk.
+  </p>
+  <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-start;">
+
+    <!-- Download backup -->
+    <div style="flex:1;min-width:220px;">
+      <div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--amber-light);
+                  text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">
+        Download Backup
+      </div>
+      <a href="{{ url_for('admin_backup_download') }}" class="btn btn-secondary">
+        📥 Download whiskywise-backup.zip
+      </a>
+    </div>
+
+    <!-- Restore backup -->
+    <div style="flex:1;min-width:220px;">
+      <div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--amber-light);
+                  text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">
+        Restore from Backup
+      </div>
+      <form method="POST" action="{{ url_for('admin_backup_restore') }}"
+            enctype="multipart/form-data"
+            onsubmit="return confirm('This will replace the current database and photos. Continue?')">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+          <input type="file" name="backupfile" accept=".zip" required
+                 style="font-size:0.85rem;cursor:pointer;">
+          <button type="submit" class="btn btn-danger btn-sm">📤 Restore</button>
+        </div>
+        <p style="font-size:0.75rem;color:var(--smoke);margin-top:0.5rem;">
+          ⚠️ All users and data will be replaced with the backup contents.
+          The app will reload automatically after restore.
+        </p>
+      </form>
+    </div>
+
+  </div>
+</div>
+
 {% endblock %}

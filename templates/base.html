@@ -548,10 +548,26 @@ function handleBarcode(code) {
       .catch(() => {});
   }
 
-  // Collection search → auto-submit
+  // Collection search → look up barcode first, offer "add?" if not found
   if (scanTarget === 'search-q') {
-    const form = el ? el.closest('form') : null;
-    if (form) form.submit();
+    fetch('/api/barcode-lookup?code=' + encodeURIComponent(code))
+      .then(r => r.json())
+      .then(d => {
+        if (d.found) {
+          window.location.href = '/whisky/' + d.id;
+        } else {
+          if (confirm('Barcode not found in your collection.\n\nAdd a new whisky with this barcode pre-filled?')) {
+            window.location.href = '/whisky/new?barcode=' + encodeURIComponent(code);
+          } else {
+            const form = el ? el.closest('form') : null;
+            if (form) form.submit();
+          }
+        }
+      })
+      .catch(() => {
+        const form = el ? el.closest('form') : null;
+        if (form) form.submit();
+      });
   }
 }
 

@@ -53,6 +53,8 @@
       {% endif %}
     </div>
     <div style="display:flex;gap:0.4rem;flex-shrink:0;">
+      <button type="button" class="btn btn-primary btn-sm"
+              onclick="openPromoteModal({{ w.id }}, '{{ w.name|e }}')">🛒</button>
       <a href="{{ url_for('edit_wishlist_item', wid=w.id) }}" class="btn btn-ghost btn-sm">Edit</a>
       <form method="POST" action="{{ url_for('delete_whisky', wid=w.id) }}" onsubmit="return confirm('Remove from wishlist?')">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -73,4 +75,41 @@
   <a href="{{ url_for('new_wishlist_item') }}" class="btn btn-primary" style="margin-top:1rem;">Add your first wish</a>
 </div>
 {% endif %}
+
+<!-- Promote to Collection modal -->
+<div id="promote-modal" style="display:none;position:fixed;inset:0;z-index:200;
+     background:rgba(0,0,0,0.82);align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:var(--oak);border:1px solid rgba(200,131,42,0.3);border-radius:var(--radius);
+              padding:1.5rem;max-width:360px;width:100%;box-shadow:var(--shadow);">
+    <h3 style="color:var(--amber-glow);margin-bottom:0.25rem;">🛒 Move to Collection</h3>
+    <p style="font-size:0.88rem;color:var(--ash);margin-bottom:1.25rem;">
+      You're adding <strong id="promote-name" style="color:var(--grain);"></strong> to your collection.
+      How do you want to track it?
+    </p>
+    <form id="promote-form" method="POST" action="">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label>Status</label>
+        <select name="status">
+          <option value="stashed">📦 Stashed — bought, not yet opened</option>
+          <option value="open">🔓 Open — currently being enjoyed</option>
+          <option value="finished">🏁 Finished — bottle is empty</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:0.5rem;">
+        <button type="submit" class="btn btn-primary btn-full">Move to Collection</button>
+        <button type="button" class="btn btn-ghost btn-sm"
+                onclick="document.getElementById('promote-modal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openPromoteModal(id, name) {
+  document.getElementById('promote-name').textContent = name;
+  document.getElementById('promote-form').action = '/whisky/' + id + '/promote';
+  document.getElementById('promote-modal').style.display = 'flex';
+}
+</script>
 {% endblock %}

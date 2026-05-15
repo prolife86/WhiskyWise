@@ -25,6 +25,16 @@
              value="{{ item.region if item else '' }}">
     </div>
     <div class="form-group">
+      <label>Age</label>
+      <input type="text" name="age" placeholder="e.g. 12 or NAS"
+             value="{{ item.age if item else '' }}">
+    </div>
+    <div class="form-group">
+      <label>ABV (%)</label>
+      <input type="text" inputmode="decimal" name="abv" placeholder="e.g. 46,0"
+             value="{{ '%.1f'|format(item.abv)|replace('.', ',') if item and item.abv is not none else '' }}">
+    </div>
+    <div class="form-group">
       <label>Expected Price (€)</label>
       <input type="text" inputmode="decimal" name="price" placeholder="bv. 69,95"
              value="{{ '%.2f'|format(item.price)|replace('.', ',') if item and item.price is not none else '' }}">

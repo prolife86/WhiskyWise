@@ -1,6 +1,4 @@
-```yaml
 name: Docker — dev build
-
 # Manual test/dev build. Builds and pushes a :dev image to GHCR and Docker Hub.
 # Does NOT create a GitHub Release, does NOT create or move any tag, does NOT
 # touch whiskywise/config.yaml, and does NOT run the sync-version commit step.

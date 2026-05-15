@@ -5,6 +5,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.2] — 2026-05-15 💾 Your Collection, Backed Up
+
+### Added
+
+- **Backup & Restore in the Admin Panel** — a new 💾 Backup & Restore section at the
+  bottom of the Admin Panel lets any admin download or restore the full application state
+  in one click.
+
+  **Download** — produces a timestamped ZIP (`whiskywise-backup-YYYYMMDD-HHMMSS.zip`)
+  containing the complete SQLite database (`backup/db/whiskywise.db`) and every uploaded
+  photo (`backup/uploads/`). All users, collections, wishlists, tasting notes, scores, and
+  photos are included.
+
+  **Restore** — upload any ZIP produced by the download. The server validates the archive,
+  saves a safety copy of the current database as `whiskywise.db.bak`, replaces the database,
+  extracts all photos (overwrites matching filenames; leaves unmatched ones untouched), then
+  recycles the connection pool so the app runs immediately against the restored data. A
+  browser confirmation dialog fires before anything is replaced.
+
+### Technical
+
+- New `GET /admin/backup/download` route — streams the ZIP directly from a `BytesIO` buffer
+  (no temp file written to disk). Protected by `@admin_required`.
+- New `POST /admin/backup/restore` route — validates ZIP structure, performs atomic DB
+  swap with `.bak` safety copy, restores photos, calls `db.engine.dispose()`. Protected
+  by `@admin_required` and CSRF.
+- `import shutil`, `import zipfile` added.
+- `admin.html` updated with the new card.
+
+### Notes
+
+- No database schema changes.
+- No Docker changes.
+- The manual `docker run` backup method in the README still works and remains documented.
+  The Admin Panel backup is an additional convenience option.
+
+---
+
 ## [1.6.1] — 2026-05-15 📅 Sort by When You Last Poured
 
 ### Added

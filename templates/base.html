@@ -267,7 +267,7 @@ main.content { flex:1; max-width:1100px; margin:0 auto; padding:1.5rem 1rem 4rem
 .wish-card:hover { border-color:rgba(200,131,42,0.4); }
 
 /* ── Stats ── */
-.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:0.75rem; margin-bottom:1.5rem; }
+.stats-row { display:grid; grid-template-columns:repeat(5,1fr); gap:0.75rem; margin-bottom:1.5rem; }
 .stat-box { background:rgba(61,43,20,0.6); border:1px solid rgba(200,131,42,0.15); border-radius:var(--radius); padding:1rem; text-align:center; }
 .stat-box .stat-num   { font-family:'Playfair Display',serif; font-size:1.8rem; font-weight:800; color:var(--amber-glow); line-height:1; }
 .stat-box .stat-label { font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--ash); text-transform:uppercase; letter-spacing:0.06em; margin-top:0.2rem; }
@@ -283,7 +283,7 @@ main.content { flex:1; max-width:1100px; margin:0 auto; padding:1.5rem 1rem 4rem
 @media (max-width:640px) {
   .nav-links  { display:none; }
   .nav-hamburger { display:block; }
-  .stats-row  { grid-template-columns:repeat(2,1fr); }
+  .stats-row  { grid-template-columns:repeat(3,1fr); }
   .chart-bar-label { width:120px; font-size:0.8rem; }
   .whisky-grid { grid-template-columns:1fr; }
   .form-grid-2 { grid-template-columns:1fr; }
@@ -304,6 +304,7 @@ main.content { flex:1; max-width:1100px; margin:0 auto; padding:1.5rem 1rem 4rem
         <a href="{{ url_for('new_whisky') }}" {% if request.endpoint=='new_whisky' %}class="active"{% endif %}>+ Add</a>
         <a href="{{ url_for('wishlist') }}"   {% if request.endpoint in ['wishlist','new_wishlist_item'] %}class="active"{% endif %}>Wishlist</a>
         <a href="{{ url_for('export_csv') }}">Export</a>
+        <a href="{{ url_for('import_csv') }}" {% if request.endpoint=='import_csv' %}class="active"{% endif %}>Import</a>
         {% if current_user.is_admin %}
         <a href="{{ url_for('admin_panel') }}" {% if request.endpoint in ['admin_panel','admin_edit_user'] %}class="active"{% endif %} style="color:var(--amber-light);">👑 Admin</a>
         {% endif %}
@@ -318,6 +319,7 @@ main.content { flex:1; max-width:1100px; margin:0 auto; padding:1.5rem 1rem 4rem
       <a href="{{ url_for('new_whisky') }}">➕ Add Whisky</a>
       <a href="{{ url_for('wishlist') }}">💫 Wishlist</a>
       <a href="{{ url_for('export_csv') }}">📤 Export CSV</a>
+      <a href="{{ url_for('import_csv') }}">📥 Import CSV</a>
       {% if current_user.is_admin %}
       <a href="{{ url_for('admin_panel') }}">👑 Admin Panel</a>
       {% endif %}
@@ -546,10 +548,26 @@ function handleBarcode(code) {
       .catch(() => {});
   }
 
-  // Collection search → auto-submit
+  // Collection search → look up barcode first, offer "add?" if not found
   if (scanTarget === 'search-q') {
-    const form = el ? el.closest('form') : null;
-    if (form) form.submit();
+    fetch('/api/barcode-lookup?code=' + encodeURIComponent(code))
+      .then(r => r.json())
+      .then(d => {
+        if (d.found) {
+          window.location.href = '/whisky/' + d.id;
+        } else {
+          if (confirm('Barcode not found in your collection.\n\nAdd a new whisky with this barcode pre-filled?')) {
+            window.location.href = '/whisky/new?barcode=' + encodeURIComponent(code);
+          } else {
+            const form = el ? el.closest('form') : null;
+            if (form) form.submit();
+          }
+        }
+      })
+      .catch(() => {
+        const form = el ? el.closest('form') : null;
+        if (form) form.submit();
+      });
   }
 }
 

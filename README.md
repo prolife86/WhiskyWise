@@ -109,7 +109,16 @@ All data is stored in a named Docker volume (`whiskywise_data`):
 * Database: `/data/db/whiskywise.db` (SQLite)
 * Photos: `/data/uploads/`
 
-To back up your data:
+### Admin Panel Backup *(recommended)*
+
+The easiest way to back up and restore is via **Admin Panel → 💾 Backup & Restore**.
+
+- **Download** — produces a timestamped ZIP containing the full database and all photos. Works in any browser, no command line needed.
+- **Restore** — upload any ZIP produced by the download. The previous database is automatically saved as `whiskywise.db.bak` before being replaced.
+
+### Manual Backup (Docker)
+
+For automated or scheduled backups, you can also use the Docker volume directly:
 
 ```bash
 docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
@@ -123,7 +132,7 @@ docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
   tar xzf /backup/whiskywise-backup.tar.gz -C /
 ```
 
-> Home Assistant users: your data lives in the add-on's `/data` folder, which HA maps to a persistent volume automatically. Back up via the standard HA backup system.
+> Home Assistant users: your data lives in the add-on's `/data` folder, which HA maps to a persistent volume automatically. Back up via the standard HA backup system or the Admin Panel.
 
 ## 🛠 Advanced Configuration
 

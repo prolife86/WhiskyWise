@@ -5,6 +5,77 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.9] — 2026-05-15 🛒 The Collection Edition
+
+### Added
+
+- **CSV import** — a new **Import CSV** page (`/import/csv`, linked from the top nav) lets
+  you upload a CSV file and add all rows directly to your collection. The importer accepts
+  the same column layout that the CSV export produces, so round-tripping your data is
+  straightforward. Only the *Name* column is required; all other columns are optional.
+  Unknown columns are silently ignored. A summary flash message reports how many rows were
+  imported and how many were skipped (always due to a missing name).
+
+- **"Move to Collection" button on wishlist detail** — a new 🛒 button appears at the top of
+  any wishlist item's detail page. Tapping it opens a compact modal that lets you pick
+  the initial status (Stashed, Open, or Finished) before promoting the entry. All existing
+  wishlist data — distillery, region, price, notes, barcode — is preserved on the new
+  collection entry.
+
+- **"Finished" count on the home dashboard** — the stats row now shows five figures:
+  Total, Open, Stashed, **Finished**, and Wishlist. Previously the Finished count was absent
+  even though the status existed throughout the app.
+
+- **`finished` count in `/api/v1/stats`** — the API stats endpoint now includes a
+  `"finished"` field alongside `"open"`, `"stashed"`, and `"wishlist_count"`. Fully
+  backwards-compatible; existing clients that ignore unknown fields are unaffected.
+
+- **Bulk delete on the Collection page** — a **☑ Select all** button and per-card
+  checkboxes (visible on hover) let you select multiple whiskies and delete them in one
+  action. A confirmation dialog fires before anything is permanently removed. The action
+  bar shows a live count of selected entries and a Deselect all shortcut.
+
+- **Last Tasted date field** — a date picker has been added to the Add / Edit Whisky form
+  under Collection Status. The date is shown on the detail page and included in the CSV
+  export and import. The database column is added automatically on first boot with no
+  manual migration needed.
+
+- **Barcode scan → "not found" prompt** — scanning a barcode on the Collection page that
+  is not in your collection now offers two choices: add a new whisky with the barcode
+  pre-filled, or fall back to a regular text search. Previously the scanner just searched
+  silently with no feedback.
+
+### Changed
+
+- **Stats row layout** — widened from 4 to 5 columns to accommodate the new Finished
+  figure. On mobile (< 640 px) the grid uses 3 columns so all five boxes remain legible.
+
+- **CSV export** — a new *Last Tasted* column is now included between *Notes* and *Added*.
+  Files exported from older versions can still be imported (the column is optional).
+
+- **Wishlist detail page** — the Edit button now correctly routes to the wishlist edit form
+  (`/whisky/<id>/edit-wishlist`) rather than the full collection edit form.
+
+### Technical
+
+- New `/whisky/<id>/promote` route (POST) — flips `wishlist=False` and sets `status`
+  from the form. CSRF-protected.
+- New `/whisky/bulk-delete` route (POST) — accepts one or more `ids` form fields.
+  Ownership-checked per entry. CSRF-protected.
+- New `/import/csv` route (GET/POST) — parses uploaded CSV with `csv.DictReader`,
+  normalises header names, and batches inserts in a single `db.session.commit()`.
+- `last_tasted` column added to the `Whisky` model (`DATE`, nullable). Auto-migrated on
+  first boot via `_init_db()`.
+- `finished` key added to `_whisky_to_dict()` response ... actually `last_tasted` added.
+- `date as date_type` imported from `datetime` for ISO parsing.
+
+### Notes
+
+- No breaking changes. All existing data, photos, and passwords are preserved.
+- No Docker or dependency changes.
+
+---
+
 ## [1.5.8] — 2026-05-13 🔢 Comma Sense
 
 ### Added

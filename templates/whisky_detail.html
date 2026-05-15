@@ -32,7 +32,13 @@
 </div>
 
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;">
-  <a href="{{ url_for('edit_whisky', wid=w.id) }}" class="btn btn-secondary">✏️ Edit</a>
+  {% if w.wishlist %}
+  <!-- Promote to collection -->
+  <button type="button" class="btn btn-primary" onclick="document.getElementById('promote-modal').style.display='flex'">
+    🛒 Move to Collection
+  </button>
+  {% endif %}
+  <a href="{{ url_for('edit_whisky', wid=w.id) if not w.wishlist else url_for('edit_wishlist_item', wid=w.id) }}" class="btn btn-secondary">✏️ Edit</a>
   <form method="POST" action="{{ url_for('delete_whisky', wid=w.id) }}"
         onsubmit="return confirm('Delete ' + this.dataset.name + '?')"
         data-name="{{ w.name | e }}"
@@ -41,6 +47,37 @@
     <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
   </form>
 </div>
+
+<!-- Promote modal -->
+{% if w.wishlist %}
+<div id="promote-modal" style="display:none;position:fixed;inset:0;z-index:200;
+     background:rgba(0,0,0,0.82);align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:var(--oak);border:1px solid rgba(200,131,42,0.3);border-radius:var(--radius);
+              padding:1.5rem;max-width:360px;width:100%;box-shadow:var(--shadow);">
+    <h3 style="color:var(--amber-glow);margin-bottom:0.25rem;">🛒 Move to Collection</h3>
+    <p style="font-size:0.88rem;color:var(--ash);margin-bottom:1.25rem;">
+      You're adding <strong style="color:var(--grain);">{{ w.name }}</strong> to your collection.
+      How do you want to track it?
+    </p>
+    <form method="POST" action="{{ url_for('promote_to_collection', wid=w.id) }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label>Status</label>
+        <select name="status">
+          <option value="stashed">📦 Stashed — bought, not yet opened</option>
+          <option value="open">🔓 Open — currently being enjoyed</option>
+          <option value="finished">🏁 Finished — bottle is empty</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:0.5rem;">
+        <button type="submit" class="btn btn-primary btn-full">Move to Collection</button>
+        <button type="button" class="btn btn-ghost btn-sm"
+                onclick="document.getElementById('promote-modal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <!-- Photos -->
 {% if w.photo_front or w.photo_back or w.photo_cask or w.photo_barcode %}
@@ -153,6 +190,12 @@
     </div>
     {% endif %}
     {% endfor %}
+    {% if w.last_tasted %}
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Last Tasted</div>
+      <div style="font-size:0.85rem;color:var(--grain);">{{ w.last_tasted.strftime('%d %b %Y') }}</div>
+    </div>
+    {% endif %}
     <div>
       <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Added</div>
       <div style="font-size:0.85rem;color:var(--grain);">{{ w.created_at.strftime('%d %b %Y') }}</div>

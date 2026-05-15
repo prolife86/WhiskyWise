@@ -1143,11 +1143,12 @@ def collection():
         query = query.filter(Whisky.retired == False)
 
     _SORT_COLS = {
-        'name':       Whisky.name,
-        'distillery': Whisky.distillery,
-        'price':      Whisky.price,
-        'score':      Whisky.score,
-        'updated':    Whisky.updated_at,
+        'name':        Whisky.name,
+        'distillery':  Whisky.distillery,
+        'price':       Whisky.price,
+        'score':       Whisky.score,
+        'updated':     Whisky.updated_at,
+        'last_tasted': Whisky.last_tasted,
     }
     sort_col = _SORT_COLS.get(sort, Whisky.score)
     if order == 'asc':
@@ -1787,12 +1788,13 @@ def api_collection():
         query = query.filter(Whisky.retired == False)
 
     sort_col = {
-        'score':      Whisky.score,
-        'name':       Whisky.name,
-        'distillery': Whisky.distillery,
-        'added':      Whisky.created_at,
-        'price':      Whisky.price,
-        'updated':    Whisky.updated_at,
+        'score':       Whisky.score,
+        'name':        Whisky.name,
+        'distillery':  Whisky.distillery,
+        'added':       Whisky.created_at,
+        'price':       Whisky.price,
+        'updated':     Whisky.updated_at,
+        'last_tasted': Whisky.last_tasted,
     }.get(sort, Whisky.score)
     if order == 'asc':
         query = query.order_by(sort_col.asc().nullslast())

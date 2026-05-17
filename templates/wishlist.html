@@ -47,6 +47,8 @@
       <div class="wish-card-meta">
         {% if w.distillery %}{{ w.distillery }}{% endif %}
         {% if w.region %} · {{ w.region }}{% endif %}
+        {% if w.age %} · {{ w.age }}{% endif %}
+        {% if w.abv %} · {{ '%.1f'|format(w.abv)|replace('.', ',') }}%{% endif %}
         {% if w.price %} · <strong style="color:var(--amber-light);">€{{ '%.2f'|format(w.price)|replace('.', ',') }}</strong>{% endif %}
         {% if w.store %} · {{ w.store }}{% endif %}
       </div>

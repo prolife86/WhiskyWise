@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.5] — 2026-05-16 📋 Wishlist Shows Everything
+
+### Fixed
+
+- **Age and ABV missing from the Wishlist overview page** — the wish-card showed
+  Distillery, Region, Price, and Store but silently omitted Age and ABV. Both are
+  now displayed between Region and Price on every wishlist card.
+
+- **Age and ABV missing from the Wishlist form** — the Add to Wishlist and Edit
+  Wishlist pages were missing Age and ABV fields. The fields have existed in the
+  database and API since v1.5.9; they were simply never added to the web form.
+
+### Notes
+
+- No database changes.
+- No Docker changes.
+- Drop in `templates/wishlist.html` and `templates/wishlist_form.html`, reload.
+
+---
+
 ## [1.6.4] — 2026-05-15 📸 Wishlist Gets a Face
 
 ### Added

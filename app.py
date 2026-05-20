@@ -246,7 +246,15 @@ def render_radar_svg(whisky, interactive=False):
 
 @app.context_processor
 def inject_globals():
-    return {'app_version': APP_VERSION, 'render_radar_svg': render_radar_svg}
+    try:
+        sym = SiteSettings.get().currency_symbol
+    except Exception:
+        sym = '€'
+    return {
+        'app_version': APP_VERSION,
+        'render_radar_svg': render_radar_svg,
+        'currency_symbol': sym,
+    }
 
 # Fix 1: security response headers on every response
 @app.after_request
@@ -465,6 +473,46 @@ class BrowserSession(db.Model):
         db.session.add(row)
         db.session.commit()
         return sid, row
+
+
+class SiteSettings(db.Model):
+    """Single-row table for global server-wide configuration.
+
+    Use ``SiteSettings.get()`` to retrieve the (auto-created) singleton row.
+    All writes go through the model instance and a ``db.session.commit()``.
+
+    ``currency_symbol`` — the symbol shown before prices in the web UI (e.g. €, £, $, kr).
+    ``currency_code``   — ISO 4217 code exposed via the API (e.g. EUR, GBP, USD).
+    """
+    id              = db.Column(db.Integer, primary_key=True)
+    currency_symbol = db.Column(db.String(8),  default='€', nullable=False)
+    currency_code   = db.Column(db.String(8),  default='EUR', nullable=False)
+
+    @classmethod
+    def get(cls):
+        """Return the singleton settings row, creating it if it doesn't exist."""
+        row = cls.query.first()
+        if row is None:
+            row = cls()
+            db.session.add(row)
+            db.session.commit()
+        return row
+
+
+# Well-known currency options shown in the selector drop-down.
+# Each tuple: (symbol, ISO code, label)
+CURRENCY_OPTIONS = [
+    ('€',  'EUR', 'EUR — Euro (€)'),
+    ('£',  'GBP', 'GBP — British Pound (£)'),
+    ('$',  'USD', 'USD — US Dollar ($)'),
+    ('Fr', 'CHF', 'CHF — Swiss Franc (Fr)'),
+    ('kr', 'SEK', 'SEK — Swedish Krona (kr)'),
+    ('kr', 'NOK', 'NOK — Norwegian Krone (kr)'),
+    ('kr', 'DKK', 'DKK — Danish Krone (kr)'),
+    ('¥',  'JPY', 'JPY — Japanese Yen (¥)'),
+    ('A$', 'AUD', 'AUD — Australian Dollar (A$)'),
+    ('C$', 'CAD', 'CAD — Canadian Dollar (C$)'),
+]
 
 
 @login_manager.user_loader
@@ -832,6 +880,11 @@ def _init_db():
                 print(f"[WhiskyWise] WARNING: last_tasted migration failed: {exc}")
         finally:
             conn.close()
+        # Ensure the SiteSettings singleton row exists (table created by create_all above)
+        try:
+            SiteSettings.get()
+        except Exception as exc:
+            print(f"[WhiskyWise] WARNING: SiteSettings init failed: {exc}")
         db.session.expire_all()
 
         first = User.query.order_by(User.id).first()
@@ -956,6 +1009,16 @@ def settings():
                 current_user.set_password(request.form['new'])
                 db.session.commit()
                 flash('Password changed successfully.', 'success')
+        elif action == 'set_currency' and current_user.is_admin:
+            code = request.form.get('currency_code', '').strip().upper()
+            sym  = next((s for s, c, _ in CURRENCY_OPTIONS if c == code), None)
+            if sym is None:
+                sym = request.form.get('currency_symbol', '€').strip()[:8] or '€'
+            site = SiteSettings.get()
+            site.currency_symbol = sym
+            site.currency_code   = code or 'EUR'
+            db.session.commit()
+            flash('Currency updated.', 'success')
     # Collect session and token data for display
     current_sid = session.get('browser_session_id')
     raw_sessions = BrowserSession.query.filter_by(user_id=current_user.id).order_by(BrowserSession.id).all()
@@ -965,7 +1028,8 @@ def settings():
         s.current = (s.session_id == current_sid)
         browser_sessions.append(s)
     api_tokens = ApiToken.query.filter_by(user_id=current_user.id).order_by(ApiToken.id).all()
-    return render_template('settings.html', browser_sessions=browser_sessions, api_tokens=api_tokens)
+    return render_template('settings.html', browser_sessions=browser_sessions, api_tokens=api_tokens,
+                           site=SiteSettings.get(), currency_options=CURRENCY_OPTIONS)
 
 
 @app.route('/settings/session/<int:sid>/revoke', methods=['POST'])
@@ -1846,6 +1910,7 @@ def api_stats():
              .filter(Whisky.score.isnot(None))
              .order_by(Whisky.score.desc())
              .limit(10).all())
+    site = SiteSettings.get()
     return jsonify({'data': {
         'total':          Whisky.query.filter_by(user_id=current_user.id, wishlist=False).count(),
         'open':           Whisky.query.filter_by(user_id=current_user.id, status='open',     wishlist=False).count(),
@@ -1854,6 +1919,8 @@ def api_stats():
         'wishlist_count': Whisky.query.filter_by(user_id=current_user.id, wishlist=True).count(),
         'top10':          [_whisky_to_dict(w) for w in top10],
         'dominant_flavours': DOMINANT_FLAVOURS,
+        'currency_code':   site.currency_code,
+        'currency_symbol': site.currency_symbol,
     }})
 
 

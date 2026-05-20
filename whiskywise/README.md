@@ -17,10 +17,12 @@ instance via the built-in REST API.
 ### Features
 
 - 📖 **Tasting journal** — log detailed notes, scores, and flavour profiles for every dram
-- 🗃️ **Collection management** — track what's in your cabinet, including bottle levels and purchase details
+- 🗃️ **Collection management** — track status (Stashed, Open, Finished, Retired), price, store, and purchase details
 - 📡 **Radar chart** — visualise flavour profiles at a glance
-- 🛒 **Wishlist** — keep track of bottles you want to try or buy
-- 📤 **CSV export** — take your data with you anytime
+- 🛒 **Wishlist** — keep track of bottles you want to try or buy, with cover photo and promote-to-collection
+- 💱 **Configurable currency** — set your currency symbol in Server Settings; applies everywhere including the Android app
+- 📤 **CSV export & import** — take your data with you, round-trip compatible with the Android app
+- 💾 **Backup & Restore** — download or restore a full backup ZIP (database + photos) from the Admin Panel
 - 📱 **Android companion app** — connects directly to your instance via the built-in REST API ([GitHub][android-app])
 
 ## Feedback

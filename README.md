@@ -1,48 +1,58 @@
 <img src="Icons/Icon 1.png" alt="WhiskyWise" width="80" align="left" style="margin-right:16px"/>
 
-# Whisky Wise - *Your Personal Spirits Guide*
+# WhiskyWise — *Your Personal Spirits Guide*
 
-Track your whisky collection, log tasting notes, and analyze flavor profiles — all in a self-hosted web app.
-
-## ✨ Features
-
-* 📝 Tasting journal (Nose, Palate, Finish)
-* ⭐ 10-point rating system
-* 🧠 Flavor profiles (13 presets + radar chart visualization)
-* 🗂 Collection tracking (Stashed, Open, Finished)
-* 📸 Photo storage (labels, bottle, barcode)
-* 💰 Purchase tracking (price, store, retired)
-* 🔍 Search & filtering (name, distillery, barcode, flavor, score)
-* 🔀 Sort collection by name, distillery, price, score, or last updated *(updated in v1.5.8)*
-* 🚫 Filter collection by retired status *(New in v1.5.8)*
-* 📊 Top 10 chart
-* 📦 CSV export (full data ownership)
-* 📷 Barcode scanning (camera-based)
-* 👥 Multi-user support
-* 📝 Wishlist tracking
-* 📱 REST API for mobile and third-party clients *(New in v1.5.0)*
-* 🔐 Session & token management — view and revoke per-device sessions *(New in v1.5.5)*
-* 🤖 Native Android companion app *(New)*
-
-## ❓ Why Whisky Wise?
-
-* No cloud lock-in — your data stays local
-* Built for whisky (not generic note apps)
-* Fast, lightweight, and self-hosted
-
-## 📱 Android Companion App *(New)*
-
-A native Android app is available for WhiskyWise. It connects to your self-hosted server via the REST API and requires server ≥ 1.5.4.
-
-**→ [WhiskyWise Android App](https://github.com/prolife86/WhiskyWise-app)**
-
-## 🚀 Getting Started
-
-WhiskyWise can be installed in several ways depending on your setup. Pick the one that fits your environment.
+Track your whisky collection, log tasting notes, and analyse flavour profiles — all in a self-hosted web app.
 
 ---
 
-### 🏠 Home Assistant Add-on *(New in v1.2.1)*
+## ✨ Features
+
+- 📝 Tasting journal (Nose, Palate, Finish)
+- ⭐ 10-point rating system with IMDB-style badge display
+- 🧠 Flavour profiles (16 presets + interactive radar chart)
+- 🗂 Collection tracking (Stashed, Open, Finished, Retired)
+- 📸 Photo storage — up to 4 slots per bottle (front label, back label, cask/bottle, barcode)
+- 💰 Purchase tracking (price, store, retired status)
+- 💱 Configurable currency symbol — set once in Server Settings, applies everywhere
+- 🔍 Search & filtering (name, distillery, barcode, flavour, score, price, status, retired)
+- 🔀 Sort by name, distillery, price, score, last updated, or last tasted
+- 📊 Top 10 chart + dashboard stats (Total, Open, Stashed, Finished, Wishlist)
+- 📦 CSV export & import (full data ownership, round-trip compatible)
+- 📷 Barcode scanning (camera-based, browser-native)
+- 👥 Multi-user support with admin panel
+- 📋 Wishlist with cover photo, age, ABV, and promote-to-collection
+- 💾 Backup & Restore via Admin Panel (ZIP containing database + all photos)
+- 📱 Full REST API for mobile and third-party clients
+- 🔐 Session & token management — view and revoke per-device sessions
+- 🤖 Native Android companion app
+
+---
+
+## ❓ Why WhiskyWise?
+
+- No cloud lock-in — your data stays local
+- Built for whisky, not generic note-taking apps
+- Fast, lightweight, and self-hosted
+- Home Assistant add-on support built in
+
+---
+
+## 📱 Android Companion App
+
+A native Android app is available for WhiskyWise. It connects to your self-hosted server via the REST API and requires server ≥ v1.5.9.
+
+**→ [WhiskyWise Android App](https://github.com/prolife86/WhiskyWise-app)**
+
+---
+
+## 🚀 Getting Started
+
+WhiskyWise can be installed in several ways depending on your setup.
+
+---
+
+### 🏠 Home Assistant Add-on
 
 The easiest way to run WhiskyWise if you already have a Home Assistant instance. No Docker commands, no compose files required.
 
@@ -66,15 +76,11 @@ All data is stored in the add-on's persistent `/data` volume — your collection
 
 ### 🐳 Docker Compose *(Recommended for standalone installs)*
 
-The most reliable way to run WhiskyWise outside of Home Assistant. All dependencies are perfectly configured out of the box.
-
-**Prerequisites:** Docker & Docker Compose installed.
-
 ```bash
 # 1. Clone / download this folder
 cd whiskywise
 
-# 2. (Recommended) Change the SECRET_KEY in docker-compose.yml
+# 2. Set a strong SECRET_KEY in docker-compose.yml
 
 # 3. Build and run
 docker-compose up -d
@@ -85,29 +91,30 @@ http://localhost:5000
 
 ---
 
-### 📦 UnRaid
+### 📦 Unraid
 
-WhiskyWise is available on the Unraid Community Applications (CA) store since version 1.5.0.
-Simply search for WhiskyWise in the CA store and install it directly from there.
+WhiskyWise is available on the Unraid Community Applications (CA) store. Search for **WhiskyWise** and install directly from there.
 
 ---
 
-## 🖥️ Configuration (docker-compose.yml)
+## 🖥️ Configuration
 
 | Variable | Default | Description |
-| --- | --- | --- |
+|---|---|---|
 | `SECRET_KEY` | `change-this-...` | Flask session secret — **must be changed** |
-| `DATABASE_PATH` | `/data/db/whiskywise.db` | SQLite DB path |
+| `DATABASE_PATH` | `/data/db/whiskywise.db` | SQLite database path |
 | `UPLOAD_FOLDER` | `/data/uploads` | Photo upload directory |
 
 For Home Assistant users, these are configured via the add-on **Configuration** tab in the HA UI.
+
+---
 
 ## 💿 Data Persistence
 
 All data is stored in a named Docker volume (`whiskywise_data`):
 
-* Database: `/data/db/whiskywise.db` (SQLite)
-* Photos: `/data/uploads/`
+- Database: `/data/db/whiskywise.db` (SQLite)
+- Photos: `/data/uploads/`
 
 ### Admin Panel Backup *(recommended)*
 
@@ -117,8 +124,6 @@ The easiest way to back up and restore is via **Admin Panel → 💾 Backup & Re
 - **Restore** — upload any ZIP produced by the download. The previous database is automatically saved as `whiskywise.db.bak` before being replaced.
 
 ### Manual Backup (Docker)
-
-For automated or scheduled backups, you can also use the Docker volume directly:
 
 ```bash
 docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
@@ -132,13 +137,21 @@ docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
   tar xzf /backup/whiskywise-backup.tar.gz -C /
 ```
 
-> Home Assistant users: your data lives in the add-on's `/data` folder, which HA maps to a persistent volume automatically. Back up via the standard HA backup system or the Admin Panel.
+> Home Assistant users: data lives in the add-on's `/data` folder, mapped automatically to a persistent volume. Back up via the standard HA backup system or the Admin Panel.
+
+---
+
+## 🖥 Server Settings
+
+Admins have access to a **Server Settings** section within ⚙ Settings. Currently this controls:
+
+- **Display Currency** — choose the currency symbol shown before prices throughout the web UI (EUR, GBP, USD, CHF, SEK, NOK, DKK, JPY, AUD, CAD, or any custom symbol). The Android companion app reads this from the API and applies it automatically.
+
+---
 
 ## 🛠 Advanced Configuration
 
 ### Docker Compose Example
-
-If you prefer to integrate WhiskyWise into an existing stack, use this `docker-compose.yml` snippet:
 
 ```yaml
 services:
@@ -155,36 +168,35 @@ services:
     restart: unless-stopped
 ```
 
-### Volume Persistence
+> **Critical:** Always map the data directory to a local volume. Deleting the container without a volume mapping will permanently lose your collection data and photos.
 
-> **Critical:** Always map the data directory to a local volume.
-> If you delete the container without a volume mapping, you will lose your tasting history and collection data.
+---
 
 ## 🔐 Security Notes
 
-* You will be prompted to change the default admin password on first login
-* Passwords must be at least 8 characters
-* Use a strong `SECRET_KEY`
-* For external access, run behind a reverse proxy (Nginx, Traefik, etc.)
-* HTTPS is recommended for camera features and security
-* Do not expose directly to the internet without a reverse proxy and HTTPS
+- You will be prompted to change the default admin password on first login
+- Passwords must be at least 8 characters
+- Use a strong `SECRET_KEY`
+- For external access, run behind a reverse proxy (Nginx, Traefik, etc.)
+- HTTPS is recommended for camera features and security
+- Do not expose directly to the internet without a reverse proxy and HTTPS
 
 ### Default login
 
-* **Username:** `admin`
-* **Password:** `whiskywise`
+- **Username:** `admin`
+- **Password:** `whiskywise`
 
-> ⚠️ You will be prompted to change this on first login. Choose a password of at least 8 characters.
+> ⚠️ You will be prompted to change this on first login.
 
-For use of the admin panel, navigate to `http://[IP]:[Port]/admin`
+For the admin panel, navigate to `http://[IP]:[Port]/admin`
 
-## 📱 REST API *(New in v1.5.0)*
+---
 
-WhiskyWise includes a full REST API for use by Android/iOS apps or any HTTP client. The API is fully isolated per user — a token only ever grants access to that user's own collection, photos, and scores. No user can see another user's data through the API.
+## 📱 REST API
+
+WhiskyWise includes a full REST API for use by Android/iOS apps or any HTTP client. All endpoints are user-scoped — a token only ever grants access to that user's own data.
 
 ### Authentication
-
-Exchange your username and password for a Bearer token (store it securely — it is only shown once):
 
 ```bash
 curl -X POST http://localhost:5000/api/auth/token \
@@ -209,46 +221,27 @@ Include the token on every subsequent request:
 Authorization: Bearer a3f9...
 ```
 
-#### Client Version Header *(New in v1.5.5)*
+### Client Version Header
 
-API clients are encouraged to send their app version on every request via the
-`X-Client-Version` header.  The server records this on the token row and
-updates it each time the header is seen — no extra calls required.  This lets
-admins (and the token owner) identify which app version is associated with each
-active token from the Settings or Admin → Sessions & Tokens pages.
+API clients are encouraged to send their app version on every request:
 
 ```
-X-Client-Version: 1.2.0
+X-Client-Version: 0.3.2
 ```
 
-> **Android app note:** Version header support is planned for a future app
-> release.  The server accepts the header now — no server-side changes will be
-> needed when the app adds it.
-
-### Session & Token Management *(New in v1.5.5)*
-
-Every login is tracked as a **browser session** and every issued API token is
-tracked individually.  Both can be viewed and revoked:
-
-- **Users** — go to ⚙ Settings to see all your active browser sessions and API
-  tokens.  Each entry shows the origin IP, client version, and (for browser
-  sessions) the User-Agent.  You can revoke any session or token that doesn't
-  look right.
-
-- **Admins** — the Admin Panel now has a 🔐 *Sessions & Tokens* link that
-  shows sessions and tokens across **all users**, with per-entry revoke
-  controls.
+The server records this on the token row and updates it on each request, so admins can see which app version is behind each active token.
 
 ### Endpoint Reference
 
 | Method | Path | Description |
-| --- | --- | --- |
-| `POST` | `/api/auth/token` | Exchange username + password for a Bearer token |
+|---|---|---|
+| `POST` | `/api/auth/token` | Exchange credentials for a Bearer token |
 | `GET` | `/api/auth/tokens` | List your tokens (metadata + IP + version) |
 | `DELETE` | `/api/auth/token/<id>` | Revoke a token |
-| `GET` | `/api/auth/sessions` | List your active browser sessions *(New in v1.5.5)* |
-| `DELETE` | `/api/auth/session/<id>` | Revoke a browser session *(New in v1.5.5)* |
-| `GET` | `/api/v1/stats` | Dashboard counts + top-10 + flavour profile list |
+| `GET` | `/api/auth/sessions` | List your active browser sessions |
+| `DELETE` | `/api/auth/session/<id>` | Revoke a browser session |
+| `GET` | `/api/v1/stats` | Dashboard counts + top-10 + flavour list + **currency symbol** |
+| `GET` | `/api/barcode-lookup` | Look up a barcode in the user's collection |
 | `GET` | `/api/v1/collection` | Collection list (filterable + paginated) |
 | `GET` | `/api/v1/wishlist` | Wishlist |
 | `POST` | `/api/v1/wishlist` | Add wishlist item |
@@ -267,20 +260,41 @@ tracked individually.  Both can be viewed and revoked:
 `GET /api/v1/collection` accepts the following query parameters:
 
 | Parameter | Description |
-| --- | --- |
+|---|---|
 | `q` | Free-text search (name, distillery, region, barcode) |
 | `flavor` | Exact flavour profile match |
 | `min_score` | Minimum score (inclusive) |
 | `max_price` | Maximum price (inclusive) |
-| `status` | `open`, `stashed`, or `retired` |
-| `sort` | `score` (default), `name`, `added`, `price` |
+| `status` | `open`, `stashed`, or `finished` |
+| `retired` | `yes`, `no`, or omit for all |
+| `sort` | `score` (default), `name`, `distillery`, `added`, `price`, `updated`, `last_tasted` |
 | `order` | `desc` (default) or `asc` |
-| `limit` | Max results (default 200, max 500) |
+| `limit` | Max results (default 200) |
 | `offset` | Pagination offset (default 0) |
+
+### Stats Response
+
+`GET /api/v1/stats` returns:
+
+```json
+{
+  "data": {
+    "total": 42,
+    "open": 8,
+    "stashed": 30,
+    "finished": 4,
+    "wishlist_count": 12,
+    "top10": [...],
+    "dominant_flavours": [...],
+    "currency_code": "EUR",
+    "currency_symbol": "€"
+  }
+}
+```
 
 ### Radar Chart
 
-Every whisky in the API response includes a `radar` object with the seven flavour axes, each scored 0–5:
+Every whisky in the API response includes a `radar` object with seven flavour axes, each scored 0–5:
 
 ```json
 "radar": {
@@ -289,7 +303,7 @@ Every whisky in the API response includes a `radar` object with the seven flavou
 }
 ```
 
-Send radar values when creating or updating a whisky using either a nested dict or flat keys:
+Send radar values when creating or updating using either a nested dict or flat keys:
 
 ```json
 { "radar": { "smoky": 4, "fruity": 2 } }
@@ -299,36 +313,35 @@ Send radar values when creating or updating a whisky using either a nested dict 
 
 All successful responses use `{"data": ...}`. All errors use `{"error": "..."}` with an appropriate HTTP status code.
 
-## 🫆 Barcode Scanning
+---
 
-Barcode scanning uses the browser's BarcodeDetector API (available in Chrome 83+ and Safari 17+). Works best on:
+## 🔖 Barcode Scanning
 
-* Android Chrome
-* iOS Safari 17+
+Barcode scanning uses the browser's `BarcodeDetector` API (available in Chrome 83+ and Safari 17+). Works best on Android Chrome and iOS Safari 17+. If the API is unavailable, type the barcode manually.
 
-If the API is unavailable, you can type the barcode manually.
+---
 
 ## 📱 Accessing on Mobile (LAN)
-
-To use WhiskyWise on your phone while connected to your home network:
 
 1. Find your server's local IP (e.g. `192.168.1.100`)
 2. Open `http://192.168.1.100:5000` on your phone, or connect via the [Android app](https://github.com/prolife86/WhiskyWise-app)
 3. Add to home screen for an app-like experience
 
-> Note: Camera/barcode scanning requires HTTPS or localhost. For LAN HTTPS, consider putting WhiskyWise behind a reverse proxy like Nginx with a local SSL certificate, or use Tailscale.
+> Camera/barcode scanning requires HTTPS or localhost. For LAN HTTPS, consider a reverse proxy with a local SSL certificate, or use Tailscale.
+
+---
 
 ## 📇 Tech Stack
 
-* **Backend:** Python / Flask
-* **Database:** SQLite (via SQLAlchemy)
-* **Auth:** Flask-Login
-* **Frontend:** Vanilla HTML/CSS/JS (no frameworks, fast and lightweight)
-* **Container:** Docker + Gunicorn
+- **Backend:** Python / Flask
+- **Database:** SQLite (via SQLAlchemy)
+- **Auth:** Flask-Login + Bearer tokens
+- **Frontend:** Vanilla HTML/CSS/JS (no frameworks)
+- **Container:** Docker + Gunicorn
+
+---
 
 ## 🤝 Contributing
-
-Found a bug or want to suggest a feature like "Distillery Maps"?
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
@@ -336,9 +349,13 @@ Found a bug or want to suggest a feature like "Distillery Maps"?
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+---
+
 ## 🤖 Development Notes
 
 Parts of this project were developed with AI assistance to accelerate development. All code is reviewed and maintained manually.
+
+---
 
 ## 📜 License
 

@@ -5,6 +5,54 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.6] — 2026-05-20 💱 Your Currency, Your Rules
+
+### Added
+
+- **Currency selector in Settings** — admins now see a 💱 Display Currency card
+  at the bottom of the Settings page. Choose from ten common currencies (EUR, GBP,
+  USD, CHF, SEK, NOK, DKK, JPY, AUD, CAD) or type a custom symbol up to 8 characters.
+  A live preview shows the result before saving. The setting is server-wide and
+  visible to admins only.
+
+- **`SiteSettings` database model** — a single-row table (`site_settings`) stores
+  `currency_symbol` (display, e.g. `€`) and `currency_code` (ISO 4217, e.g. `EUR`).
+  Created automatically on first boot with EUR/€ defaults — no manual SQL required.
+
+- **Currency exposed in the API** — `GET /api/v1/stats` now returns:
+  ```json
+  "currency_code":   "EUR",
+  "currency_symbol": "€"
+  ```
+  The Android app reads these on login and applies the server's currency automatically.
+  Older clients that ignore unknown fields are unaffected.
+
+- **`{{ currency_symbol }}` Jinja global** — injected into every template via the
+  context processor. All price labels and placeholders in `collection.html`,
+  `whisky_detail.html`, `wishlist.html`, `whisky_form.html`, and `wishlist_form.html`
+  now reflect the server setting automatically.
+
+### Technical
+
+- New `SiteSettings` model with `currency_symbol` (String 8, default `€`) and
+  `currency_code` (String 8, default `EUR`). Created by `db.create_all()` on first boot.
+- New `CURRENCY_OPTIONS` constant — list of `(symbol, code, label)` tuples for the dropdown.
+- `set_currency` action added to the existing `POST /settings` route (admin-only guard).
+- `settings()` route now passes `site` and `currency_options` to the template.
+- `inject_globals()` context processor reads `SiteSettings.get()` and exposes
+  `currency_symbol` to all templates.
+- `_init_db()` calls `SiteSettings.get()` to ensure the singleton row exists on boot.
+
+### Notes
+
+- No breaking changes. Existing data, photos, and passwords are preserved.
+- No Docker changes.
+- Drop in `app.py`, `templates/settings.html`, `templates/collection.html`,
+  `templates/whisky_detail.html`, `templates/wishlist.html`,
+  `templates/whisky_form.html`, `templates/wishlist_form.html` and reload.
+
+---
+
 ## [1.6.5] — 2026-05-16 📋 Wishlist Shows Everything
 
 ### Fixed

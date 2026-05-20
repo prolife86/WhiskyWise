@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% block title %}Settings — WhiskyWise{% endblock %}
+{% block content %}
+
+<h1 style="color:var(--amber-glow);margin-bottom:1.5rem;">⚙ Account Settings</h1>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;max-width:780px;">
+
+  <!-- Change Username -->
+  <div class="card">
+    <div class="card-header"><h3>✏️ Change Username</h3></div>
+    <p style="font-size:0.85rem;margin-bottom:1rem;">
+      Current username: <strong style="color:var(--amber-light);">{{ current_user.username }}</strong>
+    </p>
+    <form method="POST">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="change_username">
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label>New Username</label>
+        <input type="text" name="username" value="{{ current_user.username }}"
+               required minlength="3" maxlength="40"
+               pattern="[a-zA-Z0-9_\-\.]+"
+               title="Letters, numbers, underscores, hyphens and dots only"
+               autocomplete="username">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Save Username</button>
+    </form>
+  </div>
+
+  <!-- Change Password -->
+  <div class="card">
+    <div class="card-header"><h3>🔑 Change Password</h3></div>
+    <form method="POST">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="change_password">
+      <div class="form-grid" style="margin-bottom:1rem;">
+        <div class="form-group">
+          <label>Current Password</label>
+          <input type="password" name="current" required autocomplete="current-password">
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" name="new" required minlength="6" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" name="confirm" required minlength="6" autocomplete="new-password">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Change Password</button>
+    </form>
+  </div>
+
+</div>
+
+{% if current_user.is_admin %}
+<!-- Server Settings: Currency (admin-only) -->
+<div class="card" style="margin-top:1rem;max-width:780px;">
+  <div class="card-header"><h3>💱 Display Currency <span style="font-size:0.72rem;font-family:'DM Mono',monospace;color:var(--ash);font-weight:normal;margin-left:0.5rem;">Server-wide · Admin only</span></h3></div>
+  <p style="font-size:0.85rem;color:var(--ash);margin-bottom:1rem;">
+    Sets the currency symbol shown before prices throughout the web UI for all users.
+    Prices are stored as plain numbers — this is a display-only setting.
+    The Android app picks up the change automatically via <code style="font-size:0.8rem;">/api/v1/stats</code>.
+  </p>
+  <form method="POST" style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="set_currency">
+
+    <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+      <label>Currency</label>
+      <select name="currency_code" id="currencySelect"
+              style="width:100%;padding:0.55rem 0.75rem;background:var(--barrel);border:1px solid rgba(200,131,42,0.25);border-radius:6px;color:var(--grain);font-size:0.9rem;">
+        {% for sym, code, label in currency_options %}
+        <option value="{{ code }}" {% if site.currency_code == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+        <option value="CUSTOM" {% if site.currency_code not in (currency_options|map(attribute=1)|list) %}selected{% endif %}>Custom…</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="customRow" style="flex:0 0 130px;margin-bottom:0;{% if site.currency_code in (currency_options|map(attribute=1)|list) %}display:none;{% endif %}">
+      <label>Custom Symbol</label>
+      <input type="text" name="currency_symbol" id="customSymbol" maxlength="8"
+             placeholder="e.g. ₹" value="{{ site.currency_symbol }}">
+    </div>
+
+    <div style="display:flex;align-items:center;gap:0.75rem;padding-bottom:0.05rem;">
+      <div style="font-family:'DM Mono',monospace;font-size:1rem;padding:0.45rem 0.9rem;background:rgba(200,131,42,0.07);border-radius:6px;">
+        <span id="previewSymbol" style="color:var(--amber-glow);">{{ site.currency_symbol }}</span><span style="color:var(--grain);">49,95</span>
+      </div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+  </form>
+</div>
+<script>
+(function(){
+  const sel=document.getElementById('currencySelect'),
+        row=document.getElementById('customRow'),
+        cus=document.getElementById('customSymbol'),
+        prv=document.getElementById('previewSymbol'),
+        map={'EUR':'€','GBP':'£','USD':'$','CHF':'Fr','SEK':'kr','NOK':'kr','DKK':'kr','JPY':'¥','AUD':'A$','CAD':'C$'};
+  function upd(){var c=sel.value;if(c==='CUSTOM'){row.style.display='';prv.textContent=cus.value||'?';}else{row.style.display='none';prv.textContent=map[c]||c;}}
+  sel.addEventListener('change',upd);
+  cus.addEventListener('input',function(){prv.textContent=this.value||'?';});
+  upd();
+})();
+</script>
+{% endif %}
+
+<!-- Account info -->
+<div class="card" style="margin-top:1rem;max-width:780px;">
+  <div class="card-header"><h3>ℹ Account Info</h3></div>
+  <div style="display:flex;flex-wrap:wrap;gap:1.5rem;">
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Username</div>
+      <div style="color:var(--grain);">{{ current_user.username }}</div>
+    </div>
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Role</div>
+      <div style="color:var(--grain);">{% if current_user.is_admin %}<span style="color:var(--amber-glow);">👑 Admin</span>{% else %}User{% endif %}</div>
+    </div>
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Member Since</div>
+      <div style="color:var(--grain);">{{ current_user.created_at.strftime('%d %b %Y') }}</div>
+    </div>
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">Bottles</div>
+      <div style="color:var(--grain);">{{ current_user.whisky_count }}</div>
+    </div>
+    <div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--amber-light);text-transform:uppercase;margin-bottom:0.25rem;">App Version</div>
+      <div style="color:var(--grain);font-family:'DM Mono',monospace;">v{{ app_version }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Active Sessions -->
+<div class="card" style="margin-top:1rem;max-width:780px;">
+  <div class="card-header"><h3>🌐 Active Browser Sessions</h3></div>
+  {% if browser_sessions %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.2);">
+          <th class="_sh">IP Address</th>
+          <th class="_sh">Version</th>
+          <th class="_sh">User Agent</th>
+          <th class="_sh">Logged In</th>
+          <th class="_sh">Last Seen</th>
+          <th class="_sh"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in browser_sessions %}
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.08);">
+          <td class="_sd mono">{{ s.origin_ip or '—' }}</td>
+          <td class="_sd mono">
+            {% if s.client_version %}v{{ s.client_version }}{% else %}—{% endif %}
+          </td>
+          <td class="_sd" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;"
+              title="{{ s.user_agent or '' }}">{{ s.user_agent or '—' }}</td>
+          <td class="_sd mono dim">{{ s.created_at.strftime('%d %b %Y %H:%M') }}</td>
+          <td class="_sd mono dim">{{ s.last_seen.strftime('%d %b %Y %H:%M') if s.last_seen else '—' }}</td>
+          <td class="_sd" style="text-align:right;">
+            {% if s.current %}
+            <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--amber-light);">This session</span>
+            {% else %}
+            <form method="POST" action="{{ url_for('settings_revoke_session', sid=s.id) }}"
+                  onsubmit="return confirm('Revoke this session?');" style="display:inline;">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      style="background:rgba(180,50,50,0.1);color:#f08080;border-color:rgba(180,50,50,0.25);font-size:0.75rem;padding:0.2rem 0.6rem;">
+                Revoke
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--ash);font-size:0.88rem;">No active sessions found.</p>
+  {% endif %}
+</div>
+
+<!-- API Tokens -->
+<div class="card" style="margin-top:1rem;max-width:780px;">
+  <div class="card-header"><h3>🔑 API Tokens</h3></div>
+  {% if api_tokens %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.2);">
+          <th class="_sh">Name</th>
+          <th class="_sh">Origin IP</th>
+          <th class="_sh">Version</th>
+          <th class="_sh">Created</th>
+          <th class="_sh">Last Used</th>
+          <th class="_sh"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in api_tokens %}
+        <tr style="border-bottom:1px solid rgba(200,131,42,0.08);">
+          <td class="_sd" style="color:var(--grain-mid);">{{ t.name }}</td>
+          <td class="_sd mono">{{ t.origin_ip or '—' }}</td>
+          <td class="_sd mono">{% if t.client_version %}v{{ t.client_version }}{% else %}—{% endif %}</td>
+          <td class="_sd mono dim">{{ t.created_at.strftime('%d %b %Y %H:%M') }}</td>
+          <td class="_sd mono dim">{{ t.last_used.strftime('%d %b %Y %H:%M') if t.last_used else 'Never' }}</td>
+          <td class="_sd" style="text-align:right;">
+            <form method="POST" action="{{ url_for('settings_revoke_token', tid=t.id) }}"
+                  onsubmit="return confirm('Revoke token &quot;{{ t.name }}&quot;?');" style="display:inline;">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      style="background:rgba(180,50,50,0.1);color:#f08080;border-color:rgba(180,50,50,0.25);font-size:0.75rem;padding:0.2rem 0.6rem;">
+                Revoke
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:var(--ash);font-size:0.88rem;">No API tokens issued yet.</p>
+  {% endif %}
+</div>
+
+<style>
+._sh {
+  font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  color: var(--amber-light); text-transform: uppercase;
+  letter-spacing: 0.05em; text-align: left; padding: 0.45rem 0.65rem;
+}
+._sd { padding: 0.6rem 0.65rem; font-size: 0.83rem; color: var(--grain-mid); vertical-align: middle; }
+.mono { font-family: 'DM Mono', monospace; }
+.dim  { color: var(--ash); }
+</style>
+
+{% endblock %}

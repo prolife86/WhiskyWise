@@ -24,7 +24,7 @@
     <input type="text" inputmode="decimal" name="min_score" value="{{ filters.min_score }}"
            placeholder="Min score" style="max-width:120px;">
     <input type="text" inputmode="decimal" name="max_price" value="{{ filters.max_price }}"
-           placeholder="Max {{ currency_symbol }}" style="max-width:120px;">
+           placeholder="Max €" style="max-width:120px;">
     <select name="status" onchange="this.form.submit()">
       <option value="">All status</option>
       <option value="open"     {% if filters.status=='open'     %}selected{% endif %}>Open</option>
@@ -123,7 +123,7 @@
         <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
         <div style="display:flex;align-items:center;gap:0.5rem;">
           {% if w.price %}
-            <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">{{ currency_symbol }}{{ '%.2f'|format(w.price)|replace('.', ',') }}</span>
+            <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">€{{ '%.2f'|format(w.price)|replace('.', ',') }}</span>
           {% endif %}
           {% if w.score is not none %}
             <div class="score-badge small">{{ '%.1f'|format(w.score)|replace('.', ',') }}</div>

@@ -53,6 +53,59 @@
 
 </div>
 
+{% if current_user.is_admin %}
+<!-- Server Settings: Currency (admin-only) -->
+<div class="card" style="margin-top:1rem;max-width:780px;">
+  <div class="card-header"><h3>💱 Display Currency <span style="font-size:0.72rem;font-family:'DM Mono',monospace;color:var(--ash);font-weight:normal;margin-left:0.5rem;">Server-wide · Admin only</span></h3></div>
+  <p style="font-size:0.85rem;color:var(--ash);margin-bottom:1rem;">
+    Sets the currency symbol shown before prices throughout the web UI for all users.
+    Prices are stored as plain numbers — this is a display-only setting.
+    The Android app picks up the change automatically via <code style="font-size:0.8rem;">/api/v1/stats</code>.
+  </p>
+  <form method="POST" style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="set_currency">
+
+    <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+      <label>Currency</label>
+      <select name="currency_code" id="currencySelect"
+              style="width:100%;padding:0.55rem 0.75rem;background:var(--barrel);border:1px solid rgba(200,131,42,0.25);border-radius:6px;color:var(--grain);font-size:0.9rem;">
+        {% for sym, code, label in currency_options %}
+        <option value="{{ code }}" {% if site.currency_code == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+        <option value="CUSTOM" {% if site.currency_code not in (currency_options|map(attribute=1)|list) %}selected{% endif %}>Custom…</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="customRow" style="flex:0 0 130px;margin-bottom:0;{% if site.currency_code in (currency_options|map(attribute=1)|list) %}display:none;{% endif %}">
+      <label>Custom Symbol</label>
+      <input type="text" name="currency_symbol" id="customSymbol" maxlength="8"
+             placeholder="e.g. ₹" value="{{ site.currency_symbol }}">
+    </div>
+
+    <div style="display:flex;align-items:center;gap:0.75rem;padding-bottom:0.05rem;">
+      <div style="font-family:'DM Mono',monospace;font-size:1rem;padding:0.45rem 0.9rem;background:rgba(200,131,42,0.07);border-radius:6px;">
+        <span id="previewSymbol" style="color:var(--amber-glow);">{{ site.currency_symbol }}</span><span style="color:var(--grain);">49,95</span>
+      </div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+  </form>
+</div>
+<script>
+(function(){
+  const sel=document.getElementById('currencySelect'),
+        row=document.getElementById('customRow'),
+        cus=document.getElementById('customSymbol'),
+        prv=document.getElementById('previewSymbol'),
+        map={'EUR':'€','GBP':'£','USD':'$','CHF':'Fr','SEK':'kr','NOK':'kr','DKK':'kr','JPY':'¥','AUD':'A$','CAD':'C$'};
+  function upd(){var c=sel.value;if(c==='CUSTOM'){row.style.display='';prv.textContent=cus.value||'?';}else{row.style.display='none';prv.textContent=map[c]||c;}}
+  sel.addEventListener('change',upd);
+  cus.addEventListener('input',function(){prv.textContent=this.value||'?';});
+  upd();
+})();
+</script>
+{% endif %}
+
 <!-- Account info -->
 <div class="card" style="margin-top:1rem;max-width:780px;">
   <div class="card-header"><h3>ℹ Account Info</h3></div>

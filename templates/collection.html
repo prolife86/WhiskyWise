@@ -123,10 +123,10 @@
         <span class="status-pill status-{{ w.status }}">{{ w.status }}</span>
         <div style="display:flex;align-items:center;gap:0.5rem;">
           {% if w.price %}
-            <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">{{ currency_symbol }}{{ '%.2f'|format(w.price)|replace('.', ',') }}</span>
+            <span style="font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--ash);">{{ currency_symbol }}{{ w.price|fmt_price(currency_code) }}</span>
           {% endif %}
           {% if w.score is not none %}
-            <div class="score-badge small">{{ '%.1f'|format(w.score)|replace('.', ',') }}</div>
+            <div class="score-badge small">{{ w.score|fmt_dec(1, currency_code) }}</div>
           {% endif %}
         </div>
       </div>

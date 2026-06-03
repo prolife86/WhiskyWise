@@ -85,7 +85,7 @@
 
     <div style="display:flex;align-items:center;gap:0.75rem;padding-bottom:0.05rem;">
       <div style="font-family:'DM Mono',monospace;font-size:1rem;padding:0.45rem 0.9rem;background:rgba(200,131,42,0.07);border-radius:6px;">
-        <span id="previewSymbol" style="color:var(--amber-glow);">{{ site.currency_symbol }}</span><span style="color:var(--grain);">49,95</span>
+        <span id="previewSymbol" style="color:var(--amber-glow);">{{ site.currency_symbol }}</span><span id="previewAmount" style="color:var(--grain);">{{ '49,95' if decimal_sep == ',' else '49.95' }}</span>
       </div>
       <button type="submit" class="btn btn-primary">Save</button>
     </div>
@@ -97,8 +97,15 @@
         row=document.getElementById('customRow'),
         cus=document.getElementById('customSymbol'),
         prv=document.getElementById('previewSymbol'),
-        map={'EUR':'€','GBP':'£','USD':'$','CHF':'Fr','SEK':'kr','NOK':'kr','DKK':'kr','JPY':'¥','AUD':'A$','CAD':'C$'};
-  function upd(){var c=sel.value;if(c==='CUSTOM'){row.style.display='';prv.textContent=cus.value||'?';}else{row.style.display='none';prv.textContent=map[c]||c;}}
+        amt=document.getElementById('previewAmount'),
+        symMap={'EUR':'€','GBP':'£','USD':'$','CHF':'Fr','SEK':'kr','NOK':'kr','DKK':'kr','JPY':'¥','AUD':'A$','CAD':'C$'},
+        dotDec=new Set(['USD','GBP','AUD','CAD','JPY']);
+  function upd(){
+    var c=sel.value;
+    if(c==='CUSTOM'){row.style.display='';prv.textContent=cus.value||'?';}
+    else{row.style.display='none';prv.textContent=symMap[c]||c;}
+    amt.textContent=dotDec.has(c)?'49.95':'49,95';
+  }
   sel.addEventListener('change',upd);
   cus.addEventListener('input',function(){prv.textContent=this.value||'?';});
   upd();

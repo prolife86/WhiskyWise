@@ -5,6 +5,61 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.7] — 2026-06-03 🔣 Right Separator, Right Currency
+
+### Fixed
+
+- **Decimal and thousands separators now respect the selected currency** — the web
+  UI was unconditionally formatting all numbers with a decimal comma (e.g. `129,99`),
+  regardless of which currency was configured. USD, GBP, AUD, CAD, and JPY now
+  correctly display a decimal point and comma-grouped thousands (e.g. `1,000.00`),
+  while EUR, CHF, SEK, NOK, DKK, and custom currencies continue to use the
+  comma-decimal, dot-thousands style (e.g. `1.000,00`).
+
+- **All display surfaces updated** — the fix covers every location where a number
+  appears in the web UI: collection cards, whisky detail pages, the score badge,
+  the score dial and manual-entry field, the wishlist overview, both add/edit forms
+  (ABV, price, score), and the dashboard top-10 chart.
+
+- **Form placeholders and input values** — placeholder text (e.g. `46,0` / `46.0`)
+  and pre-filled form values now also use the correct separator so the UI is
+  consistent from display through to editing.
+
+- **Currency settings preview** — the live preview in the admin Settings page now
+  updates its example amount (`49,95` / `49.95`) when a different currency is
+  selected in the dropdown.
+
+### Technical
+
+- Added `_DOT_DECIMAL` set in `app.py` — the five ISO 4217 codes that use
+  dot-decimal notation (`USD`, `GBP`, `AUD`, `CAD`, `JPY`).
+- Added `_currency_dec_sep(code)` helper — returns `'.'` or `','` for a given
+  currency code; falls back to `','` for unknown/custom codes.
+- Added two Jinja2 template filters registered via `@app.template_filter`:
+  - `fmt_dec(value, places, currency_code)` — formats ABV and score with the
+    correct decimal separator.
+  - `fmt_price(value, currency_code)` — formats prices with both thousands
+    grouping and the correct decimal separator.
+- `inject_globals()` context processor now also injects `currency_code` and
+  `decimal_sep` into every template, alongside the existing `currency_symbol`.
+- JS score dial in `whisky_form.html` now reads `_DEC_SEP` injected by the
+  server and uses a `_fmtScore()` helper so display and input remain consistent
+  with the server-side locale. The hidden POST field always uses a dot so
+  `_float_or_none()` on the server continues to work unchanged.
+
+### Notes
+
+- No database changes.
+- The API is unaffected — it already returns raw dot-decimal floats and that is
+  correct. Client apps format numbers themselves using the `currency_code` they
+  read from `GET /api/v1/stats`.
+- Drop in `app.py`, `templates/settings.html`, `templates/collection.html`,
+  `templates/whisky_detail.html`, `templates/wishlist.html`,
+  `templates/whisky_form.html`, `templates/wishlist_form.html`,
+  `templates/index.html` and reload.
+
+---
+
 ## [1.6.6] — 2026-05-20 💱 Your Currency, Your Rules
 
 ### Added

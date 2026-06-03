@@ -247,13 +247,18 @@ def render_radar_svg(whisky, interactive=False):
 @app.context_processor
 def inject_globals():
     try:
-        sym = SiteSettings.get().currency_symbol
+        site = SiteSettings.get()
+        sym  = site.currency_symbol
+        code = site.currency_code
     except Exception:
-        sym = '€'
+        sym  = '€'
+        code = 'EUR'
     return {
-        'app_version': APP_VERSION,
+        'app_version':      APP_VERSION,
         'render_radar_svg': render_radar_svg,
-        'currency_symbol': sym,
+        'currency_symbol':  sym,
+        'currency_code':    code,
+        'decimal_sep':      _currency_dec_sep(code),
     }
 
 # Fix 1: security response headers on every response
@@ -513,6 +518,49 @@ CURRENCY_OPTIONS = [
     ('A$', 'AUD', 'AUD — Australian Dollar (A$)'),
     ('C$', 'CAD', 'CAD — Canadian Dollar (C$)'),
 ]
+
+# Currencies that use a dot as decimal separator and comma as thousands separator
+# (e.g. 1,000.00). Everything else uses a comma as decimal separator (e.g. 1.000,00).
+_DOT_DECIMAL = {'USD', 'GBP', 'AUD', 'CAD', 'JPY'}
+
+
+def _currency_dec_sep(code):
+    """Return '.' or ',' as the decimal separator for an ISO 4217 currency code."""
+    return '.' if (code or '').upper() in _DOT_DECIMAL else ','
+
+
+@app.template_filter('fmt_dec')
+def _fmt_dec(value, places, currency_code='EUR'):
+    """Jinja filter: format a float to *places* decimal places using the correct
+    decimal separator for *currency_code*.  Returns '' for None/empty values.
+
+    Usage in templates:  {{ w.score|fmt_dec(1, currency_code) }}
+    """
+    if value is None:
+        return ''
+    s = f'{float(value):.{places}f}'
+    if _currency_dec_sep(currency_code) == ',':
+        s = s.replace('.', ',')
+    return s
+
+
+@app.template_filter('fmt_price')
+def _fmt_price(value, currency_code='EUR'):
+    """Jinja filter: format a price with thousands grouping and the correct
+    decimal separator for *currency_code*.  Returns '' for None/empty values.
+
+    USD/GBP/AUD/CAD/JPY → dot-decimal, comma thousands  e.g. 1,000.00
+    EUR/CHF/SEK/NOK/DKK and custom → comma-decimal, dot thousands  e.g. 1.000,00
+
+    Usage in templates:  {{ w.price|fmt_price(currency_code) }}
+    """
+    if value is None:
+        return ''
+    if _currency_dec_sep(currency_code) == '.':
+        return f'{float(value):,.2f}'
+    # comma-decimal: format with Python's comma grouping then swap separators
+    s = f'{float(value):,.2f}'          # e.g. "1,000.00"
+    return s.replace(',', 'X').replace('.', ',').replace('X', '.')  # → "1.000,00"
 
 
 @login_manager.user_loader

@@ -145,7 +145,7 @@ docker run --rm -v whiskywise_data:/data -v $(pwd):/backup alpine \
 
 Admins have access to a **Server Settings** section within ⚙ Settings. Currently this controls:
 
-- **Display Currency** — choose the currency symbol shown before prices throughout the web UI (EUR, GBP, USD, CHF, SEK, NOK, DKK, JPY, AUD, CAD, or any custom symbol). The Android companion app reads this from the API and applies it automatically.
+- **Display Currency** — choose the currency symbol shown before prices throughout the web UI (EUR, GBP, USD, CHF, SEK, NOK, DKK, JPY, AUD, CAD, or any custom symbol). The web UI automatically uses the correct decimal and thousands separators for the selected currency (e.g. `1,000.00` for USD/GBP, `1.000,00` for EUR/CHF). The Android companion app reads this from the API and applies it automatically.
 
 ---
 

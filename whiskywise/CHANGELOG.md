@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.8] — 2026-06-04 🩹 One That Got Away
+
+### Fixed
+
+- **ABV in the whisky detail header was still showing a raw dot-decimal float**
+  (e.g. `48.0%`) regardless of currency setting. The detail table below it was
+  correctly formatted in v1.6.7, but the ABV badge in the header row was using
+  `{{ w.abv }}` directly, bypassing the `fmt_dec` filter entirely. Now uses
+  `{{ w.abv|fmt_dec(1, currency_code) }}` consistently with everything else.
+
+### Notes
+
+- No database changes.
+- Only `whisky_detail.html` changed. Drop it in and reload.
+
+---
+
 ## [1.6.7] — 2026-06-03 🔣 Right Separator, Right Currency
 
 ### Fixed

@@ -20,7 +20,7 @@
       {% if w.retired %}<span class="status-pill status-retired">🚫 Retired</span>{% endif %}
       {% if w.flavor_profile %}<span class="flavor-tag">{{ w.flavor_profile|capitalize }}</span>{% endif %}
       {% if w.age  %}<span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">{{ w.age }} yr</span>{% endif %}
-      {% if w.abv  %}<span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">{{ w.abv }}%</span>{% endif %}
+      {% if w.abv  %}<span style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ash);">{{ w.abv|fmt_dec(1, currency_code) }}%</span>{% endif %}
     </div>
   </div>
   {% if w.score is not none %}

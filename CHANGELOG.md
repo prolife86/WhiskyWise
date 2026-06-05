@@ -18,7 +18,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Notes
 
 - No database changes.
-- Only `whisky_detail.html` changed.
+- Only `whisky_detail.html` changed. Drop it in and reload.
 
 ---
 

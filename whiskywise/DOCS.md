@@ -43,8 +43,7 @@ The default credentials are:
 - **Username:** `admin`
 - **Password:** `whiskywise`
 
-> ⚠️ Change your password immediately after first login via
-> **⚙️ Settings → Change Password** inside WhiskyWise.
+> ⚠️ You will be prompted to change the default password automatically on first login.
 
 ## Configuration
 

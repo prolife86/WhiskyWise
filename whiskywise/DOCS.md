@@ -68,7 +68,16 @@ and photos survive add-on restarts and updates.
 - Database: `/data/db/whiskywise.db`
 - Photos: `/data/uploads/`
 
-Back up your data using the standard Home Assistant backup system.
+### Admin Panel Backup *(recommended)*
+
+The easiest way to back up and restore is via **Admin Panel → 💾 Backup & Restore** inside WhiskyWise.
+
+- **Download** — produces a timestamped ZIP containing the full database and all photos.
+- **Restore** — upload any ZIP produced by the download. The previous database is saved as `whiskywise.db.bak` before being replaced.
+
+### Home Assistant Backup
+
+You can also back up via the standard Home Assistant backup system, which includes the add-on's `/data` directory automatically.
 
 ## Changelog & Releases
 

@@ -226,7 +226,7 @@ Authorization: Bearer a3f9...
 API clients are encouraged to send their app version on every request:
 
 ```
-X-Client-Version: 0.3.2
+X-Client-Version: 0.3.3
 ```
 
 The server records this on the token row and updates it on each request, so admins can see which app version is behind each active token.
